@@ -1,12 +1,10 @@
 package autodoc
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -79,7 +77,7 @@ func getType(i interface{}) map[string]interface{} {
 		}
 		m["properties"] = p
 	default:
-		panic("unexpected type")
+		panic(fmt.Sprintf("unexpected type %T", i))
 	}
 	return m
 }
@@ -99,69 +97,31 @@ func (p *payload) getJSON() interface{} {
 }
 
 type writerRecorder struct {
-	w          http.ResponseWriter
+	http.ResponseWriter
 	body       []byte
 	statusCode int
 }
 
+func (w *writerRecorder) Body() []byte {
+	return w.body
+}
+
+func (w *writerRecorder) StatusCode() int {
+	return w.statusCode
+}
+
 func (w *writerRecorder) Header() http.Header {
-	return w.w.Header()
+	return w.ResponseWriter.Header()
 }
 
 func (w *writerRecorder) Write(b []byte) (int, error) {
 	w.body = append(make([]byte, 0, len(b)), b...)
-	return w.w.Write(b)
+	return w.ResponseWriter.Write(b)
 }
 
 func (w *writerRecorder) WriteHeader(statusCode int) {
 	w.statusCode = statusCode
-	w.w.WriteHeader(statusCode)
-}
-
-type ginWriterRecorder struct {
-	writerRecorder
-	w gin.ResponseWriter
-}
-
-func (w *ginWriterRecorder) CloseNotify() <-chan bool {
-	return w.w.CloseNotify()
-}
-
-func (w *ginWriterRecorder) Flush() {
-	w.w.Flush()
-}
-
-func (w *ginWriterRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	return w.w.Hijack()
-}
-
-func (w *ginWriterRecorder) Pusher() http.Pusher {
-	return w.w.Pusher()
-}
-
-func (w *ginWriterRecorder) Status() int {
-	return w.w.Status()
-}
-func (w *ginWriterRecorder) Size() int {
-	return w.w.Size()
-}
-func (w *ginWriterRecorder) WriteString(s string) (int, error) {
-	return w.w.WriteString(s)
-}
-func (w *ginWriterRecorder) Written() bool {
-	return w.w.Written()
-}
-func (w *ginWriterRecorder) WriteHeaderNow() {
-	w.w.WriteHeaderNow()
-}
-
-func newGinWriterRecorder(w gin.ResponseWriter) ginWriterRecorder {
-	return ginWriterRecorder{
-		w: w,
-		writerRecorder: writerRecorder{
-			w: w,
-		},
-	}
+	w.ResponseWriter.WriteHeader(statusCode)
 }
 
 func (re *Recorder) Record(h http.HandlerFunc) http.HandlerFunc {
@@ -174,7 +134,7 @@ func (re *Recorder) Record(h http.HandlerFunc) http.HandlerFunc {
 		re.request.headers = r.Header.Clone()
 
 		ww := writerRecorder{
-			w: w,
+			ResponseWriter: w,
 		}
 		h(&ww, r)
 
@@ -186,18 +146,15 @@ func (re *Recorder) Record(h http.HandlerFunc) http.HandlerFunc {
 
 func (r *Recorder) RecordGin(h gin.HandlerFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// cc := c.Copy()
-		ww := newGinWriterRecorder(c.Writer)
 		r.Record(func(w http.ResponseWriter, r *http.Request) {
-			c.Writer = &ww
+			cc, _ := gin.CreateTestContext(w)
+			c.Writer = cc.Writer
 			h(c)
-		})(&ww, c.Request)
-		r.response.statusCode = ww.Status()
-		r.response.body = ww.body
+		})(c.Writer, c.Request)
 	}
 }
 
-func (r *Recorder) Print() {
+func (r *Recorder) Generate() []byte {
 	requestBody := map[string]interface{}{}
 	{
 		content := map[string]interface{}{
@@ -241,5 +198,5 @@ func (r *Recorder) Print() {
 	}
 
 	y, _ := yaml.Marshal(yml)
-	println(string(y))
+	return y
 }
