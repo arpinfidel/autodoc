@@ -55,7 +55,7 @@ func getType(i interface{}) map[string]interface{} {
 				"example": n,
 			}
 		} else {
-			panic("unexpected type")
+			panic(fmt.Sprintf("unexpected type %T", i))
 		}
 	case string:
 		m = map[string]interface{}{
@@ -76,8 +76,15 @@ func getType(i interface{}) map[string]interface{} {
 			p[k] = getType(v)
 		}
 		m["properties"] = p
+	case []interface{}:
+		m = map[string]interface{}{
+			"type": "array",
+		}
+		if len(i) > 0 {
+			m["items"] = getType(i[0])
+		}
 	default:
-		panic(fmt.Sprintf("unexpected type %T", i))
+		panic(fmt.Sprintf("unexpected type %T %#v", i, i))
 	}
 	return m
 }
