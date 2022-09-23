@@ -1,32 +1,52 @@
 # autodoc
 Automatically generate OpenAPI documentation from unit tests
 
-Currently only supports json request/response and result is only printed to stdout
+Currently only supports json request/response
+
+- import recorder
+- record each test case and generate file for each test
+- call `autodoc` to generate Open API file containing all tests
 
 # usage
+
+```
+go install github.com/tkp-richard/autodoc
+```
+
 ```go
-gin.SetMode(gin.TestMode)
+import autodoc "github.com/tkp-richard/autodoc/record"
+```
 
-c, _ := gin.CreateTestContext(w)
-c.Request = &http.Request{
-	URL:           &url.URL{},
-	MultipartForm: &multipart.Form{},
-	TLS:           &tls.ConnectionState{},
-	Response:      &http.Response{},
-}
-
+```go
 r := autodoc.Recorder{
-	Path:   "/foo/bar",
-	Method: "post",
-	Tag:    "foo",
-	ExpectedStatusCode: 200,
+  Path:   "/foo/bar",
+  Method: "post",
+  Tag:    "foo",
+  ExpectedStatusCode: 200,
 }
 
-// Foobar being a gin.HandlerFunc
-r.RecordGin(handler.FooBar)(c)
-o := r.OpenAPI()
-fmt.Printf(o.String())
+for _, tt := range tests {
+  t.Run(tt.name, func(t *testing.T) {
+    gin.SetMode(gin.TestMode)
 
-// Or for standard http handler
-// r.Record(handler.FooBar)(w, r)
+    c, _ := gin.CreateTestContext(w)
+    c.Request = &http.Request{
+      URL:           &url.URL{},
+      MultipartForm: &multipart.Form{},
+      TLS:           &tls.ConnectionState{},
+      Response:      &http.Response{},
+    }
+
+    // Foobar being a gin.HandlerFunc
+    r.RecordGin(handler.FooBar)(c)
+    r.GenerateFile()
+
+    // Or for standard http handler
+    // r.Record(handler.FooBar)(w, r)
+  }
+}
+```
+
+```bash
+$ autodoc
 ```
