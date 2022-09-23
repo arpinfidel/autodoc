@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,31 +16,31 @@ import (
 )
 
 type Recorder struct {
-	Path               string
-	Method             string
-	Tag                string
-	ExpectedStatusCode int
-	records            []record
+	Path               string   `json:"path"`
+	Method             string   `json:"method"`
+	Tag                string   `json:"tag"`
+	ExpectedStatusCode int      `json:"expected_status_code"`
+	Records            []record `json:"records"`
 	recordsLock        sync.RWMutex
 }
 
 type record struct {
-	request  payload
-	response response
+	Request  payload  `json:"request"`
+	Response response `json:"response"`
 }
 
 type payload struct {
-	headers map[string][]string
-	body    []byte
+	Headers map[string][]string `json:"headers"`
+	Body    []byte              `json:"body"`
 }
 
 type response struct {
 	payload
-	statusCode int
+	StatusCode int `json:"status_code"`
 }
 
 func (p *payload) contentType() string {
-	for k, v := range p.headers {
+	for k, v := range p.Headers {
 		if strings.ToLower(k) == "content-type" && len(v) > 0 {
 			return v[0]
 		}
@@ -99,11 +100,9 @@ func getType(i interface{}) map[string]interface{} {
 func (p *payload) getJSON() interface{} {
 	m := map[string]interface{}{}
 	j := map[string]interface{}{}
-	println(string(p.body))
-	d := json.NewDecoder(bytes.NewReader(p.body))
+	d := json.NewDecoder(bytes.NewReader(p.Body))
 	d.UseNumber()
 	d.Decode(&j)
-	fmt.Printf("j: %#v\n", j)
 	for k, v := range j {
 		m[k] = getType(v)
 	}
@@ -143,21 +142,21 @@ func (re *Recorder) Record(h http.HandlerFunc) http.HandlerFunc {
 		rec := record{}
 		if r.Body != nil {
 			body, _ := ioutil.ReadAll(r.Body)
-			rec.request.body = body
+			rec.Request.Body = body
 			r.Body = ioutil.NopCloser(bytes.NewReader(body))
 		}
-		rec.request.headers = r.Header.Clone()
+		rec.Request.Headers = r.Header.Clone()
 
 		ww := writerRecorder{
 			ResponseWriter: w,
 		}
 		h(&ww, r)
 
-		rec.response.body = ww.body
-		rec.response.headers = ww.Header().Clone()
-		rec.response.statusCode = ww.statusCode
+		rec.Response.Body = ww.body
+		rec.Response.Headers = ww.Header().Clone()
+		rec.Response.StatusCode = ww.statusCode
 		re.recordsLock.Lock()
-		re.records = append(re.records, rec)
+		re.Records = append(re.Records, rec)
 		re.recordsLock.Unlock()
 	}
 }
@@ -185,9 +184,9 @@ func (o *OpenAPI) String() string {
 
 func (r *Recorder) OpenAPI() OpenAPI {
 	req := payload{}
-	for _, rec := range r.records {
-		if rec.response.statusCode == r.ExpectedStatusCode {
-			req = rec.request
+	for _, rec := range r.Records {
+		if rec.Response.StatusCode == r.ExpectedStatusCode {
+			req = rec.Request
 		}
 	}
 	requestBody := map[string]interface{}{}
@@ -204,14 +203,14 @@ func (r *Recorder) OpenAPI() OpenAPI {
 	}
 
 	responses := map[string]interface{}{}
-	for _, rec := range r.records {
-		responses[strconv.Itoa(rec.response.statusCode)] = map[string]interface{}{
+	for _, rec := range r.Records {
+		responses[strconv.Itoa(rec.Response.StatusCode)] = map[string]interface{}{
 			"description": "",
 			"content": map[string]interface{}{
-				rec.response.contentType(): map[string]interface{}{
+				rec.Response.contentType(): map[string]interface{}{
 					"schema": map[string]interface{}{
 						"type":       "object",
-						"properties": rec.response.getJSON(),
+						"properties": rec.Response.getJSON(),
 					},
 				},
 			},
@@ -235,4 +234,25 @@ func (r *Recorder) OpenAPI() OpenAPI {
 		},
 	}
 	return yml
+}
+
+func (r *Recorder) JSON() []byte {
+	j, _ := json.Marshal(r)
+	return j
+}
+
+func (r *Recorder) JSONString() string {
+	return string(r.JSON())
+}
+
+func (r *Recorder) GenerateFile() error {
+	path := "./autodoc/" + r.Method + "-" + strings.TrimLeft(strings.ReplaceAll(r.Path, "/", "_"), "_") + ".json"
+	os.Mkdir("autodoc", os.ModePerm)
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = f.Write(r.JSON())
+	return err
 }
