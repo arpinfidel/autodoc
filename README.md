@@ -19,12 +19,14 @@ r := autodoc.Recorder{
 	Path:   "/foo/bar",
 	Method: "post",
 	Tag:    "foo",
+	ExpectedStatusCode: 200,
 }
+
 // Foobar being a gin.HandlerFunc
 r.RecordGin(handler.FooBar)(c)
+o := r.OpenAPI()
+fmt.Printf(o.String())
 
 // Or for standard http handler
 // r.Record(handler.FooBar)(w, r)
-
-r.Print()
 ```
