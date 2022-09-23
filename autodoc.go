@@ -8,15 +8,22 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"gopkg.in/yaml.v3"
 )
 
 type Recorder struct {
-	Path     string
-	Method   string
-	Tag      string
+	Path               string
+	Method             string
+	Tag                string
+	ExpectedStatusCode int
+	records            []record
+	recordsLock        sync.RWMutex
+}
+
+type record struct {
 	request  payload
 	response response
 }
@@ -133,21 +140,25 @@ func (w *writerRecorder) WriteHeader(statusCode int) {
 
 func (re *Recorder) Record(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		rec := record{}
 		if r.Body != nil {
 			body, _ := ioutil.ReadAll(r.Body)
-			re.request.body = body
+			rec.request.body = body
 			r.Body = ioutil.NopCloser(bytes.NewReader(body))
 		}
-		re.request.headers = r.Header.Clone()
+		rec.request.headers = r.Header.Clone()
 
 		ww := writerRecorder{
 			ResponseWriter: w,
 		}
 		h(&ww, r)
 
-		re.response.body = ww.body
-		re.response.headers = ww.Header().Clone()
-		re.response.statusCode = ww.statusCode
+		rec.response.body = ww.body
+		rec.response.headers = ww.Header().Clone()
+		rec.response.statusCode = ww.statusCode
+		re.recordsLock.Lock()
+		re.records = append(re.records, rec)
+		re.recordsLock.Unlock()
 	}
 }
 
@@ -161,32 +172,52 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc) gin.HandlerFunc {
 	}
 }
 
-func (r *Recorder) Generate() []byte {
+type OpenAPI map[string]interface{}
+
+func (o *OpenAPI) Bytes() []byte {
+	y, _ := yaml.Marshal(o)
+	return y
+}
+
+func (o *OpenAPI) String() string {
+	return string(o.Bytes())
+}
+
+func (r *Recorder) OpenAPI() OpenAPI {
+	req := payload{}
+	for _, rec := range r.records {
+		if rec.response.statusCode == r.ExpectedStatusCode {
+			req = rec.request
+		}
+	}
 	requestBody := map[string]interface{}{}
 	{
 		content := map[string]interface{}{
-			r.request.contentType(): map[string]interface{}{
+			req.contentType(): map[string]interface{}{
 				"schema": map[string]interface{}{
 					"type":       "object",
-					"properties": r.request.getJSON(),
+					"properties": req.getJSON(),
 				},
 			},
 		}
 		requestBody["content"] = content
 	}
-	responses := map[string]interface{}{
-		strconv.Itoa(r.response.statusCode): map[string]interface{}{
+
+	responses := map[string]interface{}{}
+	for _, rec := range r.records {
+		responses[strconv.Itoa(rec.response.statusCode)] = map[string]interface{}{
 			"description": "",
 			"content": map[string]interface{}{
-				r.response.contentType(): map[string]interface{}{
+				rec.response.contentType(): map[string]interface{}{
 					"schema": map[string]interface{}{
 						"type":       "object",
-						"properties": r.response.getJSON(),
+						"properties": rec.response.getJSON(),
 					},
 				},
 			},
-		},
+		}
 	}
+
 	yml := map[string]interface{}{
 		"openapi": "3.0.3",
 		"info": map[string]interface{}{
@@ -203,7 +234,5 @@ func (r *Recorder) Generate() []byte {
 			},
 		},
 	}
-
-	y, _ := yaml.Marshal(yml)
-	return y
+	return yml
 }
