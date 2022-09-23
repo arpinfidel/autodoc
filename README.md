@@ -50,3 +50,11 @@ for _, tt := range tests {
 ```bash
 $ autodoc
 ```
+
+todo
+- [ ] path parameters
+- [ ] query parameters
+- [ ] headers
+- [ ] form body
+- [ ] postman collection
+- [ ] other body types
