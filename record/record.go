@@ -246,7 +246,7 @@ func (r *Recorder) JSONString() string {
 }
 
 func (r *Recorder) GenerateFile() error {
-	path := "./autodoc/" + r.Method + "-" + strings.TrimLeft(strings.ReplaceAll(r.Path, "/", "_"), "_") + ".json"
+	path := "./autodoc/autodoc-" + r.Method + "-" + strings.TrimLeft(strings.ReplaceAll(r.Path, "/", "_"), "_") + ".json"
 	os.Mkdir("autodoc", os.ModePerm)
 	f, err := os.Create(path)
 	if err != nil {
