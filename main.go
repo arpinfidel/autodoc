@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	autodoc "github.com/tkp-richard/autodoc/record"
+	autodoc "github.com/arpinfidel/autodoc/record"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v3"
 )

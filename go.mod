@@ -1,4 +1,4 @@
-module github.com/tkp-richard/autodoc
+module github.com/arpinfidel/autodoc
 
 go 1.17
 

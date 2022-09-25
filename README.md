@@ -4,17 +4,18 @@ Automatically generate OpenAPI documentation from unit tests
 Currently only supports json request/response and path/query parameters
 
 - import recorder
-- record each test case and generate file for each test
-- call `autodoc` to generate Open API file containing all tests
+- call the record and generate functions in your test cases. this will generate temporary files
+- run the test cases
+- call `autodoc` in your root directory to generate the OpenAPI file containing all tests
 
 # usage
 
 ```
-go install github.com/tkp-richard/autodoc
+go install github.com/arpinfidel/autodoc
 ```
 
 ```go
-import autodoc "github.com/tkp-richard/autodoc/record"
+import autodoc "github.com/arpinfidel/autodoc/record"
 ```
 
 ```go
