@@ -99,7 +99,9 @@ func getType(i interface{}) map[string]interface{} {
 			m["items"] = getType(i[0])
 		}
 	case nil:
-		m = map[string]interface{}{}
+		m = map[string]interface{}{
+			"example": nil,
+		}
 	default:
 		panic(fmt.Sprintf("unexpected type %T %#v", i, i))
 	}
