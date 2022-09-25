@@ -1,7 +1,7 @@
 # autodoc
 Automatically generate OpenAPI documentation from unit tests
 
-Currently only supports json request/response and path parameters
+Currently only supports json request/response and path/query parameters
 
 - import recorder
 - record each test case and generate file for each test
@@ -52,7 +52,6 @@ $ autodoc
 ```
 
 # todo
-- [ ] query parameters
 - [ ] headers
 - [ ] form body
 - [ ] postman collection

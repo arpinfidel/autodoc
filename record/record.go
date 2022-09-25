@@ -38,8 +38,8 @@ type Payload struct {
 
 type Request struct {
 	Payload
-	PathParams  map[string]string `json:"path_params"`
-	QueryParams map[string]string `json:"query_params"`
+	PathParams  map[string]string   `json:"path_params"`
+	QueryParams map[string][]string `json:"query_params"`
 }
 type Response struct {
 	Payload
@@ -160,6 +160,8 @@ func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.Handl
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		rec := Record{}
+
+		// save body and header
 		if r.Body != nil {
 			body, _ := ioutil.ReadAll(r.Body)
 			rec.Request.Body = body
@@ -167,6 +169,7 @@ func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.Handl
 		}
 		rec.Request.Headers = r.Header.Clone()
 
+		// parse path params
 		recP := strings.Split(re.Path, "/")
 		reqP := strings.Split(r.URL.Path, "/")
 		if len(recP) != len(reqP) {
@@ -185,11 +188,21 @@ func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.Handl
 			}
 		}
 
+		// parse query params
+		for k, v := range r.URL.Query() {
+			if rec.Request.QueryParams == nil {
+				rec.Request.QueryParams = map[string][]string{}
+			}
+			rec.Request.QueryParams[k] = v
+		}
+
+		// call actual handler
 		ww := writerRecorder{
 			ResponseWriter: w,
 		}
 		h(&ww, r)
 
+		// save recording
 		rec.Response.Body = ww.body
 		rec.Response.Headers = ww.Header().Clone()
 		rec.Response.StatusCode = ww.statusCode
@@ -206,7 +219,7 @@ func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.Handl
 	}
 }
 
-func (r *Recorder) RecordGin(h gin.HandlerFunc) gin.HandlerFunc {
+func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.Request.URL.Path == "" {
 			p := r.Path
@@ -221,7 +234,7 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc) gin.HandlerFunc {
 			cc, _ := gin.CreateTestContext(w)
 			c.Writer = cc.Writer
 			h(c)
-		})(c.Writer, c.Request)
+		}, opts...)(c.Writer, c.Request)
 	}
 }
 
@@ -284,6 +297,32 @@ func (r *Recorder) OpenAPI() OpenAPI {
 			},
 			"example": v,
 		})
+	}
+	for k, v := range req.QueryParams {
+		if len(v) == 0 {
+			continue
+		}
+		p := map[string]interface{}{
+			"in":       "query",
+			"name":     k,
+			"required": true,
+		}
+		if len(v) > 1 {
+			// TODO: test this
+			p["schema"] = map[string]interface{}{
+				"type": "array",
+				"items": map[string]interface{}{
+					"type": "string",
+				},
+			}
+			p["example"] = v
+		} else {
+			p["schema"] = map[string]interface{}{
+				"type": "string",
+			}
+			p["example"] = v[0]
+		}
+		params = append(params, p)
 	}
 
 	responses := map[string]interface{}{}
