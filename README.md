@@ -51,10 +51,12 @@ for _, tt := range tests {
 $ autodoc
 ```
 
-todo
+# todo
 - [ ] path parameters
 - [ ] query parameters
 - [ ] headers
 - [ ] form body
 - [ ] postman collection
 - [ ] other body types
+- [ ] description from go doc
+- [ ] descriptions and other fields

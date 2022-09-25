@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"io/fs"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
 	autodoc "github.com/tkp-richard/autodoc/record"
+	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v3"
 )
 
-func main() {
-	var all map[string]interface{}
+func getFiles() (paths []string) {
 	filepath.Walk(".", func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -22,6 +23,7 @@ func main() {
 		if info.IsDir() {
 			return nil
 		}
+
 		p := strings.Split(path, "/")
 		folder := ""
 		file := ""
@@ -29,58 +31,106 @@ func main() {
 			folder = p[len(p)-2]
 			file = p[len(p)-1]
 		}
+
 		if folder != "autodoc" || !strings.HasPrefix(file, "autodoc-") {
 			return nil
 		}
 
-		fmt.Println("found file", path)
+		paths = append(paths, path)
+		return nil
+	})
 
-		f, err := ioutil.ReadFile(path)
-		if err != nil {
-			panic(err)
-		}
+	return paths
+}
 
-		recorder := autodoc.Recorder{}
-		err = json.Unmarshal(f, &recorder)
+func fileToRecorder(path string) (r autodoc.Recorder, err error) {
+	f, err := ioutil.ReadFile(path)
+	if err != nil {
+		return r, err
+	}
+
+	err = json.Unmarshal(f, &r)
+	if err != nil {
+		return r, err
+	}
+
+	return r, nil
+}
+
+func writeFile(b []byte) error {
+	os.Mkdir("autodoc", os.ModePerm)
+	f, err := os.Create("./autodoc/openapi.yaml")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = f.Write(b)
+	return err
+}
+
+func openAPI() error {
+	all := autodoc.OpenAPI{
+		OpenAPI: "3.0.3",
+		Info: autodoc.OpenAPIInfo{
+			Title:   "",
+			Version: "1.0.0",
+		},
+	}
+
+	paths := getFiles()
+	for _, path := range paths {
+		fmt.Println("found autodoc file:", path)
+
+		recorder, err := fileToRecorder(path)
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		o := recorder.OpenAPI()
 
-		if all == nil {
-			all = o
-		} else {
-			i := o["paths"]
-			m, ok := i.(map[string]interface{})
-			if !ok {
-				panic("invalid file format: " + path)
-			}
-			for p := range m {
-				am := all["paths"].(map[string]interface{})
-				am[p] = m[p]
-			}
+		for i := range o.Paths {
+			all.Paths[i] = o.Paths[i]
 		}
-
-		return nil
-	})
+	}
 
 	y, err := yaml.Marshal(all)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	os.Mkdir("autodoc", os.ModePerm)
-	f, err := os.Create("./autodoc/openapi.yaml")
-	if err != nil {
-		panic(err)
+	return writeFile(y)
+}
+
+func main() {
+	var (
+		format string
+	)
+	app := &cli.App{
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:        "format",
+				Value:       "openapi",
+				Aliases:     []string{"f"},
+				Usage:       "openapi",
+				Destination: &format,
+			},
+		},
+		Name: "autodoc",
+		Action: func(*cli.Context) error {
+			return nil
+		},
 	}
-	defer f.Close()
 
-	println(string(y))
+	if err := app.Run(os.Args); err != nil {
+		log.Fatal(err)
+	}
 
-	_, err = f.Write(y)
-	if err != nil {
-		panic(err)
+	switch format {
+	case "openapi":
+		err := openAPI()
+		if err != nil {
+			panic(err)
+		}
 	}
 }

@@ -21,7 +21,7 @@ type Recorder struct {
 	Tag                string   `json:"tag"`
 	ExpectedStatusCode int      `json:"expected_status_code"`
 	Records            []record `json:"records"`
-	recordsLock        sync.RWMutex
+	recordsLock        *sync.RWMutex
 }
 
 type record struct {
@@ -171,7 +171,16 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc) gin.HandlerFunc {
 	}
 }
 
-type OpenAPI map[string]interface{}
+type OpenAPI struct {
+	OpenAPI string                 `yaml:"openapi"`
+	Info    OpenAPIInfo            `yaml:"info"`
+	Paths   map[string]interface{} `yaml:"paths"`
+}
+
+type OpenAPIInfo struct {
+	Title   string `yaml:"title"`
+	Version string `yaml:"version"`
+}
 
 func (o *OpenAPI) Bytes() []byte {
 	y, _ := yaml.Marshal(o)
@@ -217,13 +226,13 @@ func (r *Recorder) OpenAPI() OpenAPI {
 		}
 	}
 
-	yml := map[string]interface{}{
-		"openapi": "3.0.3",
-		"info": map[string]interface{}{
-			"title":   "",
-			"version": "1.0.0",
+	yml := OpenAPI{
+		OpenAPI: "3.0.3",
+		Info: OpenAPIInfo{
+			Title:   "",
+			Version: "1.0.0",
 		},
-		"paths": map[string]interface{}{
+		Paths: map[string]interface{}{
 			r.Path: map[string]interface{}{
 				r.Method: map[string]interface{}{
 					"tags":        []string{r.Tag},
