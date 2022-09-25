@@ -20,26 +20,27 @@ type Recorder struct {
 	Method             string   `json:"method"`
 	Tag                string   `json:"tag"`
 	ExpectedStatusCode int      `json:"expected_status_code"`
-	Records            []record `json:"records"`
+	Records            []Record `json:"records"`
 	recordsLock        *sync.RWMutex
 }
 
-type record struct {
-	Request  payload  `json:"request"`
-	Response response `json:"response"`
+type Record struct {
+	Request  Payload        `json:"request"`
+	Response Response       `json:"response"`
+	Options  *RecordOptions `json:"options"`
 }
 
-type payload struct {
+type Payload struct {
 	Headers map[string][]string `json:"headers"`
 	Body    []byte              `json:"body"`
 }
 
-type response struct {
-	payload
+type Response struct {
+	Payload
 	StatusCode int `json:"status_code"`
 }
 
-func (p *payload) contentType() string {
+func (p *Payload) contentType() string {
 	for k, v := range p.Headers {
 		if strings.ToLower(k) == "content-type" && len(v) > 0 {
 			return v[0]
@@ -97,7 +98,7 @@ func getType(i interface{}) map[string]interface{} {
 	return m
 }
 
-func (p *payload) getJSON() interface{} {
+func (p *Payload) getJSON() interface{} {
 	m := map[string]interface{}{}
 	j := map[string]interface{}{}
 	d := json.NewDecoder(bytes.NewReader(p.Body))
@@ -137,9 +138,15 @@ func (w *writerRecorder) WriteHeader(statusCode int) {
 	w.ResponseWriter.WriteHeader(statusCode)
 }
 
-func (re *Recorder) Record(h http.HandlerFunc) http.HandlerFunc {
+type RecordOptions struct {
+	UseAsOpenAPIRequest          bool
+	ExcludeFromOpenAPI           bool
+	ExcludeFromPostmanCollection bool
+}
+
+func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		rec := record{}
+		rec := Record{}
 		if r.Body != nil {
 			body, _ := ioutil.ReadAll(r.Body)
 			rec.Request.Body = body
@@ -155,9 +162,16 @@ func (re *Recorder) Record(h http.HandlerFunc) http.HandlerFunc {
 		rec.Response.Body = ww.body
 		rec.Response.Headers = ww.Header().Clone()
 		rec.Response.StatusCode = ww.statusCode
+		if len(opts) > 0 {
+			rec.Options = &opts[0]
+		} else {
+			// TODO: default options
+			rec.Options = &RecordOptions{}
+		}
 		re.recordsLock.Lock()
 		re.Records = append(re.Records, rec)
 		re.recordsLock.Unlock()
+
 	}
 }
 
@@ -192,9 +206,17 @@ func (o *OpenAPI) String() string {
 }
 
 func (r *Recorder) OpenAPI() OpenAPI {
-	req := payload{}
+	req := Payload{}
+	reqIsFlagged := false
 	for _, rec := range r.Records {
-		if rec.Response.StatusCode == r.ExpectedStatusCode {
+		if rec.Options.ExcludeFromOpenAPI {
+			continue
+		}
+		if rec.Response.StatusCode == r.ExpectedStatusCode && !reqIsFlagged {
+			req = rec.Request
+		}
+		if rec.Options.UseAsOpenAPIRequest {
+			reqIsFlagged = true
 			req = rec.Request
 		}
 	}
@@ -213,6 +235,9 @@ func (r *Recorder) OpenAPI() OpenAPI {
 
 	responses := map[string]interface{}{}
 	for _, rec := range r.Records {
+		if rec.Options.ExcludeFromOpenAPI {
+			continue
+		}
 		responses[strconv.Itoa(rec.Response.StatusCode)] = map[string]interface{}{
 			"description": "",
 			"content": map[string]interface{}{
