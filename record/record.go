@@ -145,6 +145,9 @@ type RecordOptions struct {
 }
 
 func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.HandlerFunc {
+	if re.recordsLock == nil {
+		re.recordsLock = &sync.RWMutex{}
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		rec := Record{}
 		if r.Body != nil {
