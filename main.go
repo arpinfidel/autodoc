@@ -76,6 +76,7 @@ func openAPI() error {
 			Title:   "",
 			Version: "1.0.0",
 		},
+		Paths: map[string]interface{}{},
 	}
 
 	paths := getFiles()

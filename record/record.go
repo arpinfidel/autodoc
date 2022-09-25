@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,7 +26,7 @@ type Recorder struct {
 }
 
 type Record struct {
-	Request  Payload        `json:"request"`
+	Request  Request        `json:"request"`
 	Response Response       `json:"response"`
 	Options  *RecordOptions `json:"options"`
 }
@@ -35,6 +36,11 @@ type Payload struct {
 	Body    []byte              `json:"body"`
 }
 
+type Request struct {
+	Payload
+	PathParams  map[string]string `json:"path_params"`
+	QueryParams map[string]string `json:"query_params"`
+}
 type Response struct {
 	Payload
 	StatusCode int `json:"status_code"`
@@ -92,6 +98,8 @@ func getType(i interface{}) map[string]interface{} {
 		if len(i) > 0 {
 			m["items"] = getType(i[0])
 		}
+	case nil:
+		m = map[string]interface{}{}
 	default:
 		panic(fmt.Sprintf("unexpected type %T %#v", i, i))
 	}
@@ -157,6 +165,24 @@ func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.Handl
 		}
 		rec.Request.Headers = r.Header.Clone()
 
+		recP := strings.Split(re.Path, "/")
+		reqP := strings.Split(r.URL.Path, "/")
+		if len(recP) != len(reqP) {
+			fmt.Println("request path does not match recorder path. skipping path parsing")
+		} else {
+			for i := range recP {
+				recP := recP[i]
+				reqP := reqP[i]
+				if recP == reqP {
+					continue
+				}
+				if rec.Request.PathParams == nil {
+					rec.Request.PathParams = map[string]string{}
+				}
+				rec.Request.PathParams[strings.Trim(recP, "{}")] = reqP
+			}
+		}
+
 		ww := writerRecorder{
 			ResponseWriter: w,
 		}
@@ -180,6 +206,15 @@ func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.Handl
 
 func (r *Recorder) RecordGin(h gin.HandlerFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if c.Request.URL.Path == "" {
+			p := r.Path
+			re := regexp.MustCompile(fmt.Sprintf(`{(.*)}`))
+			matches := re.FindAllString(r.Path, -1)
+			for _, m := range matches {
+				p = strings.ReplaceAll(p, m, c.Param(strings.Trim(m, "{}")))
+			}
+			c.Request.URL.Path = p
+		}
 		r.Record(func(w http.ResponseWriter, r *http.Request) {
 			cc, _ := gin.CreateTestContext(w)
 			c.Writer = cc.Writer
@@ -209,7 +244,7 @@ func (o *OpenAPI) String() string {
 }
 
 func (r *Recorder) OpenAPI() OpenAPI {
-	req := Payload{}
+	req := Request{}
 	reqIsFlagged := false
 	for _, rec := range r.Records {
 		if rec.Options.ExcludeFromOpenAPI {
@@ -234,6 +269,19 @@ func (r *Recorder) OpenAPI() OpenAPI {
 			},
 		}
 		requestBody["content"] = content
+	}
+
+	params := []map[string]interface{}{}
+	for k, v := range req.PathParams {
+		params = append(params, map[string]interface{}{
+			"in":       "path",
+			"name":     k,
+			"required": true,
+			"schema": map[string]interface{}{
+				"type": "string",
+			},
+			"example": v,
+		})
 	}
 
 	responses := map[string]interface{}{}
@@ -265,6 +313,7 @@ func (r *Recorder) OpenAPI() OpenAPI {
 				r.Method: map[string]interface{}{
 					"tags":        []string{r.Tag},
 					"requestBody": requestBody,
+					"parameters":  params,
 					"responses":   responses,
 				},
 			},
