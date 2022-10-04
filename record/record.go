@@ -287,6 +287,7 @@ func (r *Recorder) OpenAPI() OpenAPI {
 	}
 
 	params := []map[string]interface{}{}
+
 	for k, v := range req.PathParams {
 		params = append(params, map[string]interface{}{
 			"in":       "path",
@@ -304,6 +305,32 @@ func (r *Recorder) OpenAPI() OpenAPI {
 		}
 		p := map[string]interface{}{
 			"in":       "query",
+			"name":     k,
+			"required": true,
+		}
+		if len(v) > 1 {
+			// TODO: test this
+			p["schema"] = map[string]interface{}{
+				"type": "array",
+				"items": map[string]interface{}{
+					"type": "string",
+				},
+			}
+			p["example"] = v
+		} else {
+			p["schema"] = map[string]interface{}{
+				"type": "string",
+			}
+			p["example"] = v[0]
+		}
+		params = append(params, p)
+	}
+	for k, v := range req.Headers {
+		if len(v) == 0 {
+			continue
+		}
+		p := map[string]interface{}{
+			"in":       "header",
 			"name":     k,
 			"required": true,
 		}

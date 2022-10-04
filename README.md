@@ -53,7 +53,7 @@ $ autodoc
 ```
 
 # todo
-- [ ] headers
+- [ ] response headers
 - [ ] form body
 - [ ] postman collection
 - [ ] other body types
