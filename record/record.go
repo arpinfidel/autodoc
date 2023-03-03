@@ -309,9 +309,8 @@ func (r *Recorder) OpenAPI() OpenAPI {
 			continue
 		}
 		p := map[string]interface{}{
-			"in":       "query",
-			"name":     k,
-			"required": true,
+			"in":   "query",
+			"name": k,
 		}
 		if len(v) > 1 {
 			// TODO: test this
