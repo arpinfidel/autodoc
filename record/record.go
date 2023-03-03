@@ -21,6 +21,7 @@ type Recorder struct {
 	Method             string   `json:"method"`
 	Tag                string   `json:"tag"`
 	APIDescription     string   `json:"api_description"`
+	APISummary         string   `json:"api_summary"`
 	ExpectedStatusCode int      `json:"expected_status_code"`
 	Records            []Record `json:"records"`
 	recordsLock        *sync.RWMutex
@@ -387,6 +388,7 @@ func (r *Recorder) OpenAPI() OpenAPI {
 				r.Method: map[string]interface{}{
 					"tags":        []string{r.Tag},
 					"description": r.APIDescription,
+					"summary":     r.APISummary,
 					"requestBody": requestBody,
 					"parameters":  params,
 					"responses":   responses,
