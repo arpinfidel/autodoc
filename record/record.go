@@ -20,7 +20,7 @@ type Recorder struct {
 	Path               string   `json:"path"`
 	Method             string   `json:"method"`
 	Tag                string   `json:"tag"`
-	Description        string   `json:"description"`
+	APIDescription     string   `json:"api_description"`
 	ExpectedStatusCode int      `json:"expected_status_code"`
 	Records            []Record `json:"records"`
 	recordsLock        *sync.RWMutex
@@ -57,7 +57,7 @@ func (p *Payload) contentType() string {
 }
 
 func getType(i interface{}) map[string]interface{} {
-	m := map[string]interface{}{}
+	var m map[string]interface{}
 	switch i := i.(type) {
 	case json.Number:
 		if n, err := i.Int64(); err == nil {
@@ -150,6 +150,8 @@ func (w *writerRecorder) WriteHeader(statusCode int) {
 }
 
 type RecordOptions struct {
+	RecordDescription string
+
 	UseAsRequestExample          bool
 	ExcludeFromOpenAPI           bool
 	ExcludeFromPostmanCollection bool
@@ -224,7 +226,7 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.Handl
 	return func(c *gin.Context) {
 		if c.Request.URL.Path == "" {
 			p := r.Path
-			re := regexp.MustCompile(fmt.Sprintf(`{(.*)}`))
+			re := regexp.MustCompile(`{(.*)}`)
 			matches := re.FindAllString(r.Path, -1)
 			for _, m := range matches {
 				p = strings.ReplaceAll(p, m, c.Param(strings.Trim(m, "{}")))
@@ -359,7 +361,7 @@ func (r *Recorder) OpenAPI() OpenAPI {
 			continue
 		}
 		responses[strconv.Itoa(rec.Response.StatusCode)] = map[string]interface{}{
-			"description": "",
+			"description": rec.Options.RecordDescription,
 			"content": map[string]interface{}{
 				rec.Response.contentType(): map[string]interface{}{
 					"schema": map[string]interface{}{
@@ -381,7 +383,7 @@ func (r *Recorder) OpenAPI() OpenAPI {
 			r.Path: map[string]interface{}{
 				r.Method: map[string]interface{}{
 					"tags":        []string{r.Tag},
-					"description": r.Description,
+					"description": r.APIDescription,
 					"requestBody": requestBody,
 					"parameters":  params,
 					"responses":   responses,
