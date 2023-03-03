@@ -241,15 +241,17 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.Handl
 	}
 }
 
-type OpenAPI struct {
-	OpenAPI string                 `yaml:"openapi"`
-	Info    OpenAPIInfo            `yaml:"info"`
-	Paths   map[string]interface{} `yaml:"paths"`
+type OpenAPIConfig struct {
+	Info       map[string]string        `yaml:"info"      `
+	Components map[string]interface{}   `yaml:"components"`
+	Security   []map[string]interface{} `yaml:"security"  `
+	Servers    []map[string]string      `yaml:"servers"   `
 }
 
-type OpenAPIInfo struct {
-	Title   string `yaml:"title"`
-	Version string `yaml:"version"`
+type OpenAPI struct {
+	OpenAPIConfig `yaml:",inline"`
+	OpenAPI       string                 `yaml:"openapi"`
+	Paths         map[string]interface{} `yaml:"paths"`
 }
 
 func (o *OpenAPI) Bytes() []byte {
@@ -375,9 +377,11 @@ func (r *Recorder) OpenAPI() OpenAPI {
 
 	yml := OpenAPI{
 		OpenAPI: "3.0.3",
-		Info: OpenAPIInfo{
-			Title:   "",
-			Version: "1.0.0",
+		OpenAPIConfig: OpenAPIConfig{
+			Info: map[string]string{
+				"title":   "",
+				"version": "1.0.0",
+			},
 		},
 		Paths: map[string]interface{}{
 			r.Path: map[string]interface{}{

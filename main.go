@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"io/ioutil"
@@ -17,7 +18,29 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func getFiles() (paths []string) {
+type config struct {
+	OutputDir string `yaml:"output_dir"`
+
+	GeneratePostmanCollection bool   `yaml:"generate_postman_collection"`
+	GenerateOpenAPI           bool   `yaml:"generate_openapi"`
+	OpenAPIFileType           string `yaml:"openapi_file_type"`
+
+	OpenAPIConfig autodoc.OpenAPIConfig `yaml:"openapi_config"`
+}
+
+var defaultConfig = config{
+	OutputDir: "autodoc",
+
+	GeneratePostmanCollection: true,
+	GenerateOpenAPI:           true,
+	OpenAPIFileType:           "yaml",
+}
+
+type instance struct {
+	config config
+}
+
+func (inst *instance) getFiles() (paths []string) {
 	filepath.Walk(".", func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -45,7 +68,7 @@ func getFiles() (paths []string) {
 	return paths
 }
 
-func fileToRecorder(path string) (r autodoc.Recorder, err error) {
+func (inst *instance) fileToRecorder(path string) (r autodoc.Recorder, err error) {
 	f, err := ioutil.ReadFile(path)
 	if err != nil {
 		return r, err
@@ -59,8 +82,8 @@ func fileToRecorder(path string) (r autodoc.Recorder, err error) {
 	return r, nil
 }
 
-func writeFile(b []byte, fname string) error {
-	os.Mkdir("autodoc", os.ModePerm)
+func (inst *instance) writeFile(b []byte, fname string) error {
+	os.MkdirAll("autodoc", os.ModePerm)
 	f, err := os.Create("./autodoc/" + fname)
 	if err != nil {
 		return err
@@ -71,21 +94,18 @@ func writeFile(b []byte, fname string) error {
 	return err
 }
 
-func openAPI() error {
+func (inst *instance) openAPI() error {
 	all := autodoc.OpenAPI{
-		OpenAPI: "3.0.3",
-		Info: autodoc.OpenAPIInfo{
-			Title:   "",
-			Version: "1.0.0",
-		},
-		Paths: map[string]interface{}{},
+		OpenAPI:       "3.0.3",
+		OpenAPIConfig: inst.config.OpenAPIConfig,
+		Paths:         map[string]interface{}{},
 	}
 
-	paths := getFiles()
+	paths := inst.getFiles()
 	for _, path := range paths {
 		fmt.Println("found autodoc file:", path)
 
-		recorder, err := fileToRecorder(path)
+		recorder, err := inst.fileToRecorder(path)
 		if err != nil {
 			return err
 		}
@@ -109,16 +129,16 @@ func openAPI() error {
 		return err
 	}
 
-	return writeFile(y, "openapi.yaml")
+	return inst.writeFile(y, "openapi.yaml")
 }
 
-func postmanCollection() error {
-	paths := getFiles()
+func (inst *instance) postmanCollection() error {
+	paths := inst.getFiles()
 	folders := map[string][]autodoc.Recorder{}
 	for _, path := range paths {
 		fmt.Println("found autodoc file:", path)
 
-		recorder, err := fileToRecorder(path)
+		recorder, err := inst.fileToRecorder(path)
 		if err != nil {
 			return err
 		}
@@ -168,7 +188,6 @@ func postmanCollection() error {
 				})
 			}
 
-			println(string(req.Request.Body))
 			item := postman.CreateItem(postman.Item{
 				Name: fmt.Sprintf("[%s] %s", r.Method, r.Path),
 				Request: &postman.Request{
@@ -195,24 +214,58 @@ func postmanCollection() error {
 		return err
 	}
 
-	println(b.String())
+	return inst.writeFile(b.Bytes(), "postman_collection.json")
+}
 
-	return writeFile(b.Bytes(), "postman_collection.json")
+func writeDefaultConfig(path string) error {
+	os.MkdirAll(filepath.Dir(path), os.ModePerm)
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	b, err := yaml.Marshal(defaultConfig)
+	if err != nil {
+		return err
+	}
+
+	_, err = f.Write(b)
+	return err
+}
+
+func getConfig(path string) (config, error) {
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		err := writeDefaultConfig("./autodoc/config.yaml")
+		if err != nil {
+			return defaultConfig, err
+		}
+	}
+
+	f, err := ioutil.ReadFile(path)
+	if err != nil {
+		return config{}, err
+	}
+
+	c := defaultConfig
+	err = yaml.Unmarshal(f, &c)
+	if err != nil {
+		return config{}, err
+	}
+
+	return c, nil
 }
 
 func main() {
-	var (
-		format string
-	)
 	app := &cli.App{
 		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:        "format",
-				Value:       "openapi",
-				Aliases:     []string{"f"},
-				Usage:       "openapi",
-				Destination: &format,
-			},
+			// &cli.StringFlag{
+			// 	Name:        "format",
+			// 	Value:       "openapi",
+			// 	Aliases:     []string{"f"},
+			// 	Usage:       "openapi",
+			// 	Destination: &format,
+			// },
 		},
 		Name: "autodoc",
 		Action: func(*cli.Context) error {
@@ -220,17 +273,28 @@ func main() {
 		},
 	}
 
-	if err := app.Run(os.Args); err != nil {
+	cfg, err := getConfig("./autodoc/config.yaml")
+	if err != nil {
+		panic(err)
+	}
+
+	inst := &instance{
+		config: cfg,
+	}
+
+	if err = app.Run(os.Args); err != nil {
 		log.Fatal(err)
 	}
 
-	switch format {
-	case "openapi":
-		err := openAPI()
+	if inst.config.GenerateOpenAPI {
+		err := inst.openAPI()
 		if err != nil {
 			panic(err)
 		}
-		err = postmanCollection()
+	}
+
+	if inst.config.GeneratePostmanCollection {
+		err = inst.postmanCollection()
 		if err != nil {
 			panic(err)
 		}
