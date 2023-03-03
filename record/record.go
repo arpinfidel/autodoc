@@ -67,7 +67,7 @@ func getType(i interface{}) map[string]interface{} {
 			}
 		} else if n, err := i.Float64(); err == nil {
 			m = map[string]interface{}{
-				"type":    "float",
+				"type":    "number",
 				"example": n,
 			}
 		} else {
