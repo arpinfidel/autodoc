@@ -97,7 +97,7 @@ func (r *Recorder) OpenAPI() OpenAPI {
 		p["schema"] = map[string]interface{}{
 			"type": "string",
 		}
-		p["example"] = q
+		p["example"] = q.Value
 
 		params = append(params, p)
 	}
@@ -112,7 +112,7 @@ func (r *Recorder) OpenAPI() OpenAPI {
 		p["schema"] = map[string]interface{}{
 			"type": "string",
 		}
-		p["example"] = h
+		p["example"] = h.Value
 
 		params = append(params, p)
 	}
