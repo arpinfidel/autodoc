@@ -72,6 +72,8 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.Handl
 
 		h(c)
 
+		fmt.Printf(">> debug >> c.Request.URL.String(): %#v\n", c.Request.URL.String())
+
 		l := har.NewLogger()
 		l.SetOption(har.BodyLogging(true))
 		l.RecordRequest("a", c.Request)
