@@ -303,7 +303,7 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.Handl
 		l.RecordResponse("a", rec.Result())
 		h := l.Export()
 		j, _ := json.Marshal(h)
-		fmt.Printf(">> debug >> j: %#v\n", j)
+		fmt.Printf(">> debug >> j: %#v\n", string(j))
 	}
 }
 
