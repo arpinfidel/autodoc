@@ -328,6 +328,56 @@ func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.Handl
 	}
 }
 
+// WrapGinHandlerFunc returns a new gin.HandlerFunc that logs the request and response in HAR format
+func WrapGinHandlerFunc(h gin.HandlerFunc) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+
+		// create a new response recorder to capture the response
+		rec := httptest.NewRecorder()
+
+		// call the original handler with the response recorder
+		h(c)
+		// calculate the time taken for the request
+		duration := time.Since(start)
+
+		// create a new HAR entry
+		entry := HarEntry{
+			StartedDateTime: start.Format(time.RFC3339),
+			Time:            int(duration / time.Millisecond),
+			Request: HarReqRes{
+				Method:      c.Request.Method,
+				URL:         getRequestURL(c.Request),
+				HTTPVersion: c.Request.Proto,
+				Headers:     c.Request.Header,
+			},
+			Response: HarReqRes{
+				Status:      rec.Code,
+				StatusText:  http.StatusText(rec.Code),
+				HTTPVersion: c.Request.Proto,
+				Headers:     rec.Header(),
+			},
+		}
+
+		// encode the HAR entry to JSON
+		jsonBytes, err := json.Marshal(entry)
+		if err != nil {
+			log.Printf("error encoding HAR entry: %s", err)
+			return
+		}
+
+		// write the JSON bytes to the log
+		fmt.Println(string(jsonBytes))
+
+		// write the response from the recorder to the original writer
+		for k, v := range rec.Header() {
+			c.Writer.Header()[k] = v
+		}
+		c.Writer.WriteHeader(rec.Code)
+		c.Writer.Write(rec.Body.Bytes())
+	}
+}
+
 func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.Request.URL.Path == "" {
@@ -339,11 +389,7 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.Handl
 			}
 			c.Request.URL.Path = p
 		}
-		WrapHandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			cc, _ := gin.CreateTestContext(w)
-			c.Writer = cc.Writer
-			h(c)
-		})(c.Writer, c.Request)
+		WrapGinHandlerFunc(h)(c)
 	}
 }
 
