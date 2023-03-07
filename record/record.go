@@ -257,10 +257,7 @@ func (r *TestResponseRecorder) Write(b []byte) (int, error) {
 }
 
 func (r *TestResponseRecorder) WriteHeader(statusCode int) {
-	if r.wroteHeader {
-		return
-	}
-	r.wroteHeader = true
+	fmt.Printf(">> debug >> statusCode: %#v\n", statusCode)
 	r.recorder.WriteHeader(statusCode)
 	r.ResponseWriter.WriteHeader(statusCode)
 }
