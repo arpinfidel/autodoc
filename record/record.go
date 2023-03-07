@@ -281,7 +281,7 @@ func createTestContext(c *gin.Context, w http.ResponseWriter) (*gin.Context, *ht
 	rec := CreateTestResponseRecorder(w)
 	cc, _ := gin.CreateTestContext(rec)
 	cc.Request = c.Request
-	return c, rec.recorder
+	return cc, rec.recorder
 }
 
 func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.HandlerFunc {
