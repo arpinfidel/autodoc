@@ -240,8 +240,8 @@ func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.Handl
 
 // TestResponseRecorder writes to both a ResponseRecorder and the original ResponseWriter
 type TestResponseRecorder struct {
+	gin.ResponseWriter
 	recorder     *httptest.ResponseRecorder
-	writer       http.ResponseWriter
 	closeChannel chan bool
 }
 
@@ -252,12 +252,12 @@ func (r *TestResponseRecorder) Header() http.Header {
 func (r *TestResponseRecorder) Write(b []byte) (int, error) {
 	fmt.Printf(">> debug >> string(b): %#v\n", string(b))
 	r.recorder.Write(b)
-	return r.writer.Write(b)
+	return r.ResponseWriter.Write(b)
 }
 
 func (r *TestResponseRecorder) WriteHeader(statusCode int) {
 	r.recorder.WriteHeader(statusCode)
-	r.writer.WriteHeader(statusCode)
+	r.ResponseWriter.WriteHeader(statusCode)
 }
 
 func (r *TestResponseRecorder) CloseNotify() <-chan bool {
@@ -268,19 +268,18 @@ func (r *TestResponseRecorder) closeClient() {
 	r.closeChannel <- true
 }
 
-func CreateTestResponseRecorder(w http.ResponseWriter) *TestResponseRecorder {
+func CreateTestResponseRecorder(w gin.ResponseWriter) *TestResponseRecorder {
 	return &TestResponseRecorder{
-		recorder:     httptest.NewRecorder(),
-		writer:       w,
-		closeChannel: make(chan bool, 1),
+		ResponseWriter: w,
+		recorder:       httptest.NewRecorder(),
+		closeChannel:   make(chan bool, 1),
 	}
 }
 
-func createTestContext(c *gin.Context, w http.ResponseWriter) (*gin.Context, *httptest.ResponseRecorder) {
+func createTestContext(c *gin.Context) (*gin.Context, *httptest.ResponseRecorder) {
 	gin.SetMode(gin.TestMode)
-	rec := CreateTestResponseRecorder(w)
-	cc, _ := gin.CreateTestContext(rec)
-	c.Writer = cc.Writer
+	rec := CreateTestResponseRecorder(c.Writer)
+	c.Writer = rec
 	return c, rec.recorder
 }
 
@@ -296,7 +295,7 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.Handl
 			c.Request.URL.Path = p
 		}
 
-		c, rec := createTestContext(c, c.Writer)
+		c, rec := createTestContext(c)
 		h(c)
 
 		l := har.NewLogger()
