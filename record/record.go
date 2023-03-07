@@ -250,6 +250,7 @@ func (r *TestResponseRecorder) Header() http.Header {
 }
 
 func (r *TestResponseRecorder) Write(b []byte) (int, error) {
+	fmt.Printf(">> debug >> string(b): %#v\n", string(b))
 	r.recorder.Write(b)
 	return r.writer.Write(b)
 }
