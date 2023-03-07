@@ -52,56 +52,30 @@ func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.Handl
 		re.recordsLock = &sync.RWMutex{}
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
-		rec := Entry{}
-
-		// parse path params
-		// recP := strings.Split(re.Path, "/")
-		// reqP := strings.Split(r.URL.Path, "/")
-		// if len(recP) != len(reqP) {
-		// 	fmt.Println("request path does not match recorder path. skipping path parsing")
-		// } else {
-		// 	for i := range recP {
-		// 		recP := recP[i]
-		// 		reqP := reqP[i]
-		// 		if recP == reqP {
-		// 			continue
-		// 		}
-		// 		if rec.Request.PathParams == nil {
-		// 			rec.Request.PathParams = map[string]string{}
-		// 		}
-		// 		rec.Request.PathParams[strings.Trim(recP, "{}")] = reqP
-		// 	}
-		// }
-
-		// // parse query params
-		// for k, v := range r.URL.Query() {
-		// 	if rec.Request.QueryParams == nil {
-		// 		rec.Request.QueryParams = map[string][]string{}
-		// 	}
-		// 	rec.Request.QueryParams[k] = v
-		// }
-
 		// call actual handler
 		ww := createResponseRecorder(w)
 		h(ww, r)
-
-		l := har.NewLogger()
-		l.RecordRequest("", r)
-		l.RecordResponse("", ww.recorder.Result())
-		rec.Entry = *l.Export().Log.Entries[0]
-
-		if len(opts) > 0 {
-			rec.Options = &opts[0]
-		} else {
-			// TODO: default options
-			rec.Options = &RecordOptions{}
-		}
-
-		re.recordsLock.Lock()
-		re.Records = append(re.Records, rec)
-		re.recordsLock.Unlock()
-
+		re.record(r, ww.recorder.Result(), opts...)
 	}
+}
+
+func (re *Recorder) record(req *http.Request, res *http.Response, opts ...RecordOptions) {
+	rec := Entry{}
+	if len(opts) > 0 {
+		rec.Options = &opts[0]
+	} else {
+		// TODO: default options
+		rec.Options = &RecordOptions{}
+	}
+
+	l := har.NewLogger()
+	l.RecordRequest("", req)
+	l.RecordResponse("", res)
+	rec.Entry = *l.Export().Log.Entries[0]
+
+	re.recordsLock.Lock()
+	re.Records = append(re.Records, rec)
+	re.recordsLock.Unlock()
 }
 
 // responseRecorder writes to both a responseRecorder and the original ResponseWriter

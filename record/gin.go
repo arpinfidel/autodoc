@@ -1,7 +1,6 @@
 package autodoc
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -9,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/martian/har"
 )
 
 // ginResponseRecorder writes to both a ResponseRecorder and the original ResponseWriter
@@ -75,14 +73,6 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.Handl
 
 		h(c)
 
-		fmt.Printf(">> debug >> c.Request.URL.String(): %#v\n", c.Request.URL.String())
-
-		l := har.NewLogger()
-		l.SetOption(har.BodyLogging(true))
-		l.RecordRequest("a", c.Request)
-		l.RecordResponse("a", rec.Result())
-		h := l.Export()
-		j, _ := json.Marshal(h)
-		fmt.Printf(">> debug >> j: %#v\n", string(j))
+		r.record(c.Request, rec.Result(), opts...)
 	}
 }
