@@ -251,13 +251,15 @@ func (r *TestResponseRecorder) Header() http.Header {
 }
 
 func (r *TestResponseRecorder) Write(b []byte) (int, error) {
-	fmt.Printf(">> debug >> string(b): %#v\n", string(b))
 	r.recorder.Write(b)
 	return r.ResponseWriter.Write(b)
 }
 
 func (r *TestResponseRecorder) WriteHeader(statusCode int) {
-	fmt.Printf(">> debug >> statusCode: %#v\n", statusCode)
+	// TODO: temp fix for sse
+	if statusCode == -1 {
+		statusCode = 200
+	}
 	r.recorder.WriteHeader(statusCode)
 	r.ResponseWriter.WriteHeader(statusCode)
 }
