@@ -299,6 +299,7 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.Handl
 		h(c)
 
 		l := har.NewLogger()
+		l.SetOption(har.BodyLogging(true))
 		l.RecordRequest("a", c.Request)
 		l.RecordResponse("a", rec.Result())
 		h := l.Export()
