@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"regexp"
 	"strconv"
@@ -14,6 +15,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gopkg.in/yaml.v3"
+
+	"github.com/google/martian/har"
 )
 
 type Recorder struct {
@@ -246,11 +249,23 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.Handl
 			}
 			c.Request.URL.Path = p
 		}
-		r.Record(func(w http.ResponseWriter, r *http.Request) {
-			cc, _ := gin.CreateTestContext(w)
-			c.Writer = cc.Writer
-			h(c)
-		}, opts...)(c.Writer, c.Request)
+
+		g := gin.New()
+		g.GET(r.Path, h)
+		ts := httptest.NewServer(g)
+		defer ts.Close()
+
+		c.Request.URL.Path = ts.URL + c.Request.URL.Path
+		resp, err := http.DefaultClient.Do(c.Request)
+		if err != nil {
+			panic(err)
+		}
+
+		l := har.NewLogger()
+		l.RecordRequest("a", c.Request)
+		l.RecordResponse("a", resp)
+		h := l.Export()
+		fmt.Printf(">> debug >> *h: %#v\n", *h)
 	}
 }
 
