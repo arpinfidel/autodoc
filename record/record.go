@@ -133,6 +133,8 @@ func (r *writerRecorder) CloseNotify() <-chan bool {
 	return r.closeChannel
 }
 
+func (r *writerRecorder) Flush() {}
+
 func createTestResponseRecorder(w http.ResponseWriter) *writerRecorder {
 	return &writerRecorder{
 		ResponseWriter: w,
