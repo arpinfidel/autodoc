@@ -156,35 +156,34 @@ func (inst *instance) postmanCollection() error {
 		}
 
 		for _, r := range record {
-			req := autodoc.Record{}
+			req := autodoc.Entry{}
+			found := false
 			for _, r := range r.Records {
 				if r.Options.UseAsRequestExample {
 					req = r
+					found = true
 					break
 				}
 			}
+
+			if !found {
+				// TODO:
+				return nil
+			}
+
 			h := []*postman.Header{}
-			for k, v := range req.Request.Headers {
-				if len(v) == 0 {
-					continue
-				}
-				// TODO: handle arrays
+			for _, rh := range req.Request.Headers {
 				h = append(h, &postman.Header{
-					Key:   k,
-					Value: v[0],
+					Key:   rh.Name,
+					Value: rh.Value,
 				})
 			}
 
 			q := []*postman.QueryParam{}
-			for k, v := range req.Request.QueryParams {
-				if len(v) == 0 {
-					continue
-				}
-
-				// TODO: handle arrays
+			for _, rq := range req.Request.QueryString {
 				q = append(q, &postman.QueryParam{
-					Key:   k,
-					Value: v[0],
+					Key:   rq.Name,
+					Value: rq.Value,
 				})
 			}
 
@@ -198,12 +197,16 @@ func (inst *instance) postmanCollection() error {
 						Query: q,
 					},
 					Header: h,
-					Body: &postman.Body{
-						Mode: "json", //TODO:
-						Raw:  string(req.Request.Body),
-					},
 				},
 			})
+
+			if req.Request.PostData != nil {
+				item.Request.Body = &postman.Body{
+					Mode: "json", //TODO:
+					Raw:  string(req.Request.PostData.Text),
+				}
+			}
+
 			folder.AddItem(item)
 		}
 	}
