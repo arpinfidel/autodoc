@@ -279,7 +279,7 @@ func CreateTestResponseRecorder(w http.ResponseWriter) *TestResponseRecorder {
 func createTestContext(c *gin.Context, w http.ResponseWriter) (*gin.Context, *httptest.ResponseRecorder) {
 	gin.SetMode(gin.TestMode)
 	rec := CreateTestResponseRecorder(w)
-	cc, _ := gin.CreateTestContext(w)
+	cc, _ := gin.CreateTestContext(rec)
 	cc.Request = c.Request
 	return c, rec.recorder
 }
