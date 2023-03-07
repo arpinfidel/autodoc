@@ -62,7 +62,7 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.Handl
 
 		if c.Request.URL.Path == "" {
 			p := r.Path
-			re := regexp.MustCompile(`{(.*)}`)
+			re := regexp.MustCompile(`{(.*?)}`)
 			matches := re.FindAllString(r.Path, -1)
 			fmt.Printf(">> debug >> r.Path: %#v\n", r.Path)
 			fmt.Printf(">> debug >> matches: %#v\n", matches)
