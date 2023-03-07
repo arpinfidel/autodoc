@@ -53,10 +53,7 @@ $ autodoc
 ```
 
 # todo
-- [ ] config file
 - [ ] response headers
 - [ ] form body
 - [ ] postman collection
 - [ ] other body types
-- [ ] description from go doc
-- [ ] descriptions and other fields
