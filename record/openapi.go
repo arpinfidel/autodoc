@@ -105,7 +105,7 @@ func (r *Recorder) OpenAPI() OpenAPI {
 	for _, h := range req.Headers {
 		p := map[string]interface{}{
 			"in":       "header",
-			"name":     h,
+			"name":     h.Name,
 			"required": true,
 		}
 
