@@ -255,8 +255,8 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.Handl
 		ts := httptest.NewServer(g)
 		defer ts.Close()
 
-		c.Request.URL.Path = ts.URL + c.Request.URL.Path
-		c.Request.Method = "POST"
+		(*c.Request).URL.Path = ts.URL + c.Request.URL.Path
+		(*c.Request).Method = "POST"
 		resp, err := http.DefaultClient.Do(c.Request)
 		if err != nil {
 			panic(err)
