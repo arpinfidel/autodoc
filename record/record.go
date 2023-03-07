@@ -242,6 +242,7 @@ func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.Handl
 type TestResponseRecorder struct {
 	gin.ResponseWriter
 	recorder     *httptest.ResponseRecorder
+	wroteHeader  bool
 	closeChannel chan bool
 }
 
@@ -256,6 +257,10 @@ func (r *TestResponseRecorder) Write(b []byte) (int, error) {
 }
 
 func (r *TestResponseRecorder) WriteHeader(statusCode int) {
+	if r.wroteHeader {
+		return
+	}
+	r.wroteHeader = true
 	r.recorder.WriteHeader(statusCode)
 	r.ResponseWriter.WriteHeader(statusCode)
 }
