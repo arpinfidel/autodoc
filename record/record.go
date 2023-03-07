@@ -238,6 +238,51 @@ func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.Handl
 	}
 }
 
+// TestResponseRecorder writes to both a ResponseRecorder and the original ResponseWriter
+type TestResponseRecorder struct {
+	recorder     *httptest.ResponseRecorder
+	writer       http.ResponseWriter
+	closeChannel chan bool
+}
+
+func (r *TestResponseRecorder) Header() http.Header {
+	return r.recorder.Header()
+}
+
+func (r *TestResponseRecorder) Write(b []byte) (int, error) {
+	r.recorder.Write(b)
+	return r.writer.Write(b)
+}
+
+func (r *TestResponseRecorder) WriteHeader(statusCode int) {
+	r.recorder.WriteHeader(statusCode)
+	r.writer.WriteHeader(statusCode)
+}
+
+func (r *TestResponseRecorder) CloseNotify() <-chan bool {
+	return r.closeChannel
+}
+
+func (r *TestResponseRecorder) closeClient() {
+	r.closeChannel <- true
+}
+
+func CreateTestResponseRecorder(w http.ResponseWriter) *TestResponseRecorder {
+	return &TestResponseRecorder{
+		recorder:     httptest.NewRecorder(),
+		writer:       w,
+		closeChannel: make(chan bool, 1),
+	}
+}
+
+func createTestContext(c *gin.Context, w http.ResponseWriter) (*gin.Context, *httptest.ResponseRecorder) {
+	gin.SetMode(gin.TestMode)
+	rec := CreateTestResponseRecorder(w)
+	cc, _ := gin.CreateTestContext(w)
+	cc.Request = c.Request
+	return c, rec.recorder
+}
+
 func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.Request.URL.Path == "" {
@@ -250,21 +295,12 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.Handl
 			c.Request.URL.Path = p
 		}
 
-		g := gin.New()
-		g.POST(r.Path, h)
-		ts := httptest.NewServer(g)
-		defer ts.Close()
-
-		c.Request.URL.Path = ts.URL + c.Request.URL.Path
-		c.Request.Method = http.MethodPost
-		resp, err := http.DefaultClient.Do(c.Request)
-		if err != nil {
-			panic(err)
-		}
+		c, rec := createTestContext(c, c.Writer)
+		h(c)
 
 		l := har.NewLogger()
 		l.RecordRequest("a", c.Request)
-		l.RecordResponse("a", resp)
+		l.RecordResponse("a", rec.Result())
 		h := l.Export()
 		fmt.Printf(">> debug >> *h: %#v\n", *h)
 	}
