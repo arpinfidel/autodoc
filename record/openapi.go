@@ -47,7 +47,7 @@ func (r *Recorder) OpenAPI() OpenAPI {
 		}
 	}
 	requestBody := map[string]interface{}{}
-	{
+	if req.PostData != nil {
 		content := map[string]interface{}{
 			getContentType(req.Headers): map[string]interface{}{
 				"schema": map[string]interface{}{
