@@ -168,7 +168,7 @@ func (inst *instance) postmanCollection() error {
 
 			if !found {
 				// TODO:
-				return errors.New("no request example found")
+				return nil
 			}
 
 			h := []*postman.Header{}

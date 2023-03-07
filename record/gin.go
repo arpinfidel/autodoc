@@ -58,6 +58,8 @@ func createTestGinContext(c *gin.Context) (*gin.Context, *httptest.ResponseRecor
 
 func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		c, rec := createTestGinContext(c)
+
 		if c.Request.URL.Path == "" {
 			p := r.Path
 			re := regexp.MustCompile(`{(.*)}`)
@@ -68,7 +70,6 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.Handl
 			c.Request.URL.Path = p
 		}
 
-		c, rec := createTestGinContext(c)
 		h(c)
 
 		l := har.NewLogger()
