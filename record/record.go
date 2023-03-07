@@ -124,8 +124,20 @@ func (p *Payload) getJSON() interface{} {
 
 type writerRecorder struct {
 	http.ResponseWriter
-	body       []byte
-	statusCode int
+	body         []byte
+	statusCode   int
+	closeChannel chan bool
+}
+
+func (r *writerRecorder) CloseNotify() <-chan bool {
+	return r.closeChannel
+}
+
+func createTestResponseRecorder(w http.ResponseWriter) *writerRecorder {
+	return &writerRecorder{
+		ResponseWriter: w,
+		closeChannel:   make(chan bool, 1),
+	}
 }
 
 func (w *writerRecorder) Body() []byte {
@@ -201,10 +213,8 @@ func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.Handl
 		}
 
 		// call actual handler
-		ww := writerRecorder{
-			ResponseWriter: w,
-		}
-		h(&ww, r)
+		ww := createTestResponseRecorder(w)
+		h(ww, r)
 
 		// save recording
 		rec.Response.Body = ww.body
