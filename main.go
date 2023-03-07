@@ -157,12 +157,20 @@ func (inst *instance) postmanCollection() error {
 
 		for _, r := range record {
 			req := autodoc.Entry{}
+			found := false
 			for _, r := range r.Records {
 				if r.Options.UseAsRequestExample {
 					req = r
+					found = true
 					break
 				}
 			}
+
+			if !found {
+				// TODO:
+				return errors.New("no request example found")
+			}
+
 			h := []*postman.Header{}
 			for _, rh := range req.Request.Headers {
 				h = append(h, &postman.Header{
