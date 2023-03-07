@@ -5,109 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"gopkg.in/yaml.v3"
 )
-
-// Har represents an HTTP Archive entry
-type Har struct {
-	Log HarLog `json:"log"`
-}
-
-// HarLog represents the log section of an HTTP Archive
-type HarLog struct {
-	Entries []HarEntry `json:"entries"`
-}
-
-// HarEntry represents an individual entry in an HTTP Archive
-type HarEntry struct {
-	StartedDateTime string    `json:"startedDateTime"`
-	Time            int       `json:"time"`
-	Request         HarReqRes `json:"request"`
-	Response        HarReqRes `json:"response"`
-}
-
-// HarReqRes represents the request or response section of an HTTP Archive entry
-type HarReqRes struct {
-	Method      string      `json:"method"`
-	URL         string      `json:"url"`
-	HTTPVersion string      `json:"httpVersion"`
-	Headers     http.Header `json:"headers"`
-	Status      int         `json:"status,omitempty"`
-	StatusText  string      `json:"statusText,omitempty"`
-}
-
-// getRequestURL returns the full URL of the request, including query parameters
-func getRequestURL(r *http.Request) string {
-	u := *r.URL
-	u.Host = r.Host
-	u.Scheme = "http"
-	if r.TLS != nil {
-		u.Scheme = "https"
-	}
-	return u.String()
-}
-
-// WrapHandlerFunc returns a new http.HandlerFunc that logs the request and response in HAR format
-func WrapHandlerFunc(h http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-
-		// create a new response recorder to capture the response
-		rec := httptest.NewRecorder()
-
-		// call the original handler with the response recorder
-		h(rec, r)
-
-		// calculate the time taken for the request
-		duration := time.Since(start)
-
-		// create a new HAR entry
-		entry := HarEntry{
-			StartedDateTime: start.Format(time.RFC3339),
-			Time:            int(duration / time.Millisecond),
-			Request: HarReqRes{
-				Method:      r.Method,
-				URL:         getRequestURL(r),
-				HTTPVersion: r.Proto,
-				Headers:     r.Header,
-			},
-			Response: HarReqRes{
-				Status:      rec.Code,
-				StatusText:  http.StatusText(rec.Code),
-				HTTPVersion: r.Proto,
-				Headers:     rec.Header(),
-			},
-		}
-
-		// encode the HAR entry to JSON
-		jsonBytes, err := json.Marshal(entry)
-		if err != nil {
-			log.Printf("error encoding HAR entry: %s", err)
-			return
-		}
-
-		// write the JSON bytes to the log
-		fmt.Println(string(jsonBytes))
-
-		// write the response from the recorder to the original writer
-		for k, v := range rec.Header() {
-			w.Header()[k] = v
-		}
-		w.WriteHeader(rec.Code)
-		w.Write(rec.Body.Bytes())
-	}
-}
 
 type Recorder struct {
 	Path               string   `json:"path"`
@@ -325,56 +232,6 @@ func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.Handl
 		re.Records = append(re.Records, rec)
 		re.recordsLock.Unlock()
 
-	}
-}
-
-// WrapGinHandlerFunc returns a new gin.HandlerFunc that logs the request and response in HAR format
-func WrapGinHandlerFunc(h gin.HandlerFunc) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		start := time.Now()
-
-		// create a new response recorder to capture the response
-		rec := httptest.NewRecorder()
-
-		// call the original handler with the response recorder
-		h(c)
-		// calculate the time taken for the request
-		duration := time.Since(start)
-
-		// create a new HAR entry
-		entry := HarEntry{
-			StartedDateTime: start.Format(time.RFC3339),
-			Time:            int(duration / time.Millisecond),
-			Request: HarReqRes{
-				Method:      c.Request.Method,
-				URL:         getRequestURL(c.Request),
-				HTTPVersion: c.Request.Proto,
-				Headers:     c.Request.Header,
-			},
-			Response: HarReqRes{
-				Status:      rec.Code,
-				StatusText:  http.StatusText(rec.Code),
-				HTTPVersion: c.Request.Proto,
-				Headers:     rec.Header(),
-			},
-		}
-
-		// encode the HAR entry to JSON
-		jsonBytes, err := json.Marshal(entry)
-		if err != nil {
-			log.Printf("error encoding HAR entry: %s", err)
-			return
-		}
-
-		// write the JSON bytes to the log
-		fmt.Println(string(jsonBytes))
-
-		// write the response from the recorder to the original writer
-		for k, v := range rec.Header() {
-			c.Writer.Header()[k] = v
-		}
-		c.Writer.WriteHeader(rec.Code)
-		c.Writer.Write(rec.Body.Bytes())
 	}
 }
 
