@@ -48,9 +48,6 @@ type RecordOptions struct {
 // }
 
 func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.HandlerFunc {
-	if re.recordsLock == nil {
-		re.recordsLock = &sync.RWMutex{}
-	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		// call actual handler
 		ww := createResponseRecorder(w)
@@ -60,6 +57,10 @@ func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.Handl
 }
 
 func (re *Recorder) record(req *http.Request, res *http.Response, opts ...RecordOptions) {
+	if re.recordsLock == nil {
+		re.recordsLock = &sync.RWMutex{}
+	}
+
 	rec := Entry{}
 	if len(opts) > 0 {
 		rec.Options = &opts[0]
