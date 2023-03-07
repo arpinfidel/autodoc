@@ -64,7 +64,10 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.Handl
 			p := r.Path
 			re := regexp.MustCompile(`{(.*)}`)
 			matches := re.FindAllString(r.Path, -1)
+			fmt.Printf(">> debug >> r.Path: %#v\n", r.Path)
+			fmt.Printf(">> debug >> matches: %#v\n", matches)
 			for _, m := range matches {
+				fmt.Printf(">> debug >> c.Param(strings.Trim(m, )): %#v\n", c.Param(strings.Trim(m, "{}")))
 				p = strings.ReplaceAll(p, m, c.Param(strings.Trim(m, "{}")))
 			}
 			c.Request.URL.Path = p
