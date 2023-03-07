@@ -197,12 +197,16 @@ func (inst *instance) postmanCollection() error {
 						Query: q,
 					},
 					Header: h,
-					Body: &postman.Body{
-						Mode: "json", //TODO:
-						Raw:  string(req.Request.PostData.Text),
-					},
 				},
 			})
+
+			if req.Request.PostData != nil {
+				item.Request.Body = &postman.Body{
+					Mode: "json", //TODO:
+					Raw:  string(req.Request.PostData.Text),
+				}
+			}
+
 			folder.AddItem(item)
 		}
 	}
