@@ -1,6 +1,7 @@
 package autodoc
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -21,6 +22,7 @@ func (r *ginResponseRecorder) Header() http.Header {
 }
 
 func (r *ginResponseRecorder) Write(b []byte) (int, error) {
+	fmt.Printf(">> debug >> string(b): %#v\n", string(b))
 	r.recorder.Write(b)
 	return r.ResponseWriter.Write(b)
 }
