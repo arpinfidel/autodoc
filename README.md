@@ -44,7 +44,7 @@ for _, tt := range tests {
 
     // Or for standard http handler
     // r.Record(handler.FooBar)(w, r)
-  }
+  })
 }
 ```
 
@@ -57,3 +57,4 @@ $ autodoc
 - [ ] form body
 - [ ] postman collection
 - [ ] other body types
+- [ ] update readme

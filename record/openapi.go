@@ -62,16 +62,14 @@ func (r *Recorder) OpenAPI() OpenAPI {
 	params := []map[string]interface{}{}
 
 	recP := strings.Split(r.Path, "/")
-	reqP := strings.Split(req.URL, "/")
-	if len(recP) != len(reqP) {
-		fmt.Printf(">> debug >> recP: %#v\n", recP)
-		fmt.Printf(">> debug >> reqP: %#v\n", reqP)
-
+	reqP := strings.Split(req.URL, "?")[0]
+	reqPs := strings.Split(reqP, "/")
+	if len(recP) != len(reqPs) {
 		fmt.Println("request path does not match recorder path. skipping path parsing")
 	} else {
 		for i := range recP {
 			recP := recP[i]
-			reqP := reqP[i]
+			reqP := reqPs[i]
 			if recP == reqP {
 				continue
 			}
