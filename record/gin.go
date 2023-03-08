@@ -27,6 +27,12 @@ func (r *ginResponseRecorder) Write(b []byte) (int, error) {
 	return r.ResponseWriter.Write(b)
 }
 
+func (r *ginResponseRecorder) WriteString(s string) (n int, err error) {
+	fmt.Printf(">> debug >> s: %#v\n", s)
+	r.recorder.WriteString(s)
+	return r.ResponseWriter.WriteString(s)
+}
+
 func (r *ginResponseRecorder) WriteHeader(statusCode int) {
 	// TODO: temp fix for sse
 	if statusCode == -1 {
