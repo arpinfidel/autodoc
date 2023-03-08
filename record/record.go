@@ -2,6 +2,7 @@ package autodoc
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -99,6 +100,7 @@ func (r *responseRecorder) Header() http.Header {
 }
 
 func (r *responseRecorder) Write(b []byte) (int, error) {
+	fmt.Printf(">> debug >> string(b): %#v\n", string(b))
 	r.recorder.Write(b)
 	return r.ResponseWriter.Write(b)
 }
