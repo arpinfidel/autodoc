@@ -60,8 +60,8 @@ autodoc
 
 ## todo
 
-- [ ] response headers
-- [ ] form body
+- [ ] response headers (recording done. just openapi left)
+- [ ] form body (recording done)
 - [ ] postman collection
 - [ ] other body types
 - [ ] update readme
