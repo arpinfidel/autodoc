@@ -40,11 +40,11 @@ for _, tt := range tests {
       Response:      &http.Response{},
     }
 
-    if env == "development" {
-        // Foobar being a gin.HandlerFunc
-        r.RecordGin(handler.FooBar, autodoc.RecordOptions{
-          UseAsRequestExample: tt.isSuccessCase,
-        })(c)
+      // Foobar being a gin.HandlerFunc
+      r.RecordGin(handler.FooBar, autodoc.RecordOptions{
+        UseAsRequestExample: tt.isSuccessCase,
+      })(c)
+          if env == "development" {
         r.GenerateFile()
     
         // Or for standard http handler
