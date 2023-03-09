@@ -1,4 +1,5 @@
 # autodoc
+
 Automatically generate OpenAPI documentation from unit tests
 
 Currently only supports json request/response and path/query parameters
@@ -23,7 +24,8 @@ r := autodoc.Recorder{
   Path:   "/foo/bar",
   Method: "post",
   Tag:    "foo",
-  ExpectedStatusCode: 200,
+  APISummary:         "Foo Bar",
+  APIDescription:     "Foo to the bar for the lorem ipsum.",
 }
 
 for _, tt := range tests {
@@ -39,7 +41,9 @@ for _, tt := range tests {
     }
 
     // Foobar being a gin.HandlerFunc
-    r.RecordGin(handler.FooBar)(c)
+    r.RecordGin(handler.FooBar, autodoc.RecordOptions{
+      UseAsRequestExample: tt.isSuccessCase,
+    })(c)
     r.GenerateFile()
 
     // Or for standard http handler
@@ -49,10 +53,11 @@ for _, tt := range tests {
 ```
 
 ```bash
-$ autodoc
+autodoc
 ```
 
-# todo
+## todo
+
 - [ ] response headers
 - [ ] form body
 - [ ] postman collection
