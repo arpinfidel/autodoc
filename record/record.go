@@ -1,6 +1,7 @@
 package autodoc
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io/ioutil"
@@ -54,6 +55,9 @@ func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.Handl
 		// call actual handler
 		ww := createResponseRecorder(w)
 		req := r.Clone(context.Background())
+		body, _ := ioutil.ReadAll(req.Body)
+		req.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+		r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
 		h(ww, r)
 		re.record(req, ww.recorder.Result(), opts...)
 	}
@@ -72,8 +76,6 @@ func (re *Recorder) record(req *http.Request, res *http.Response, opts ...Record
 		rec.Options = &RecordOptions{}
 	}
 
-	req2 := req.Clone(context.Background())
-
 	l := har.NewLogger()
 	l.SetOption(har.BodyLogging(true))
 	l.RecordRequest("", req)
@@ -81,8 +83,8 @@ func (re *Recorder) record(req *http.Request, res *http.Response, opts ...Record
 	rec.Entry = *l.Export().Log.Entries[0]
 
 	// har library doesn't read body if content length etc not set
-	if rec.Entry.Request.PostData == nil && req2.Body != nil {
-		body, _ := ioutil.ReadAll(req2.Body)
+	if rec.Entry.Request.PostData == nil && req.Body != nil {
+		body, _ := ioutil.ReadAll(req.Body)
 		rec.Entry.Request.PostData = &har.PostData{
 			Text: string(body),
 		}

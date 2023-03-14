@@ -1,7 +1,9 @@
 package autodoc
 
 import (
+	"bytes"
 	"context"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -69,6 +71,9 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.Handl
 		}
 
 		req := c.Request.Clone(context.Background())
+		body, _ := ioutil.ReadAll(req.Body)
+		req.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+		c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
 
 		h(c)
 
