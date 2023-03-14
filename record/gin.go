@@ -1,6 +1,7 @@
 package autodoc
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -67,8 +68,10 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.Handl
 			c.Request.URL.Path = p
 		}
 
+		req := c.Request.Clone(context.Background())
+
 		h(c)
 
-		r.record(c.Request, rec.Result(), opts...)
+		r.record(req, rec.Result(), opts...)
 	}
 }
