@@ -55,9 +55,11 @@ func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.Handl
 		// call actual handler
 		ww := createResponseRecorder(w)
 		req := r.Clone(context.Background())
-		body, _ := ioutil.ReadAll(req.Body)
-		req.Body = ioutil.NopCloser(bytes.NewBuffer(body))
-		r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+		if req.Body != nil {
+			body, _ := ioutil.ReadAll(req.Body)
+			req.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+			r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+		}
 		h(ww, r)
 		re.record(req, ww.recorder.Result(), opts...)
 	}
