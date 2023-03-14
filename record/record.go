@@ -3,6 +3,7 @@ package autodoc
 import (
 	"context"
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -71,11 +72,21 @@ func (re *Recorder) record(req *http.Request, res *http.Response, opts ...Record
 		rec.Options = &RecordOptions{}
 	}
 
+	req2 := req.Clone(context.Background())
+
 	l := har.NewLogger()
 	l.SetOption(har.BodyLogging(true))
 	l.RecordRequest("", req)
 	l.RecordResponse("", res)
 	rec.Entry = *l.Export().Log.Entries[0]
+
+	// har library doesn't read body if content length etc not set
+	if rec.Entry.Request.PostData == nil && req2.Body != nil {
+		body, _ := ioutil.ReadAll(req2.Body)
+		rec.Entry.Request.PostData = &har.PostData{
+			Text: string(body),
+		}
+	}
 
 	re.recordsLock.Lock()
 	re.Records = append(re.Records, rec)
