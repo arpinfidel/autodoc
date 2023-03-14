@@ -1,6 +1,7 @@
 package autodoc
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -51,8 +52,9 @@ func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.Handl
 	return func(w http.ResponseWriter, r *http.Request) {
 		// call actual handler
 		ww := createResponseRecorder(w)
+		req := r.Clone(context.Background())
 		h(ww, r)
-		re.record(r, ww.recorder.Result(), opts...)
+		re.record(req, ww.recorder.Result(), opts...)
 	}
 }
 
@@ -70,6 +72,7 @@ func (re *Recorder) record(req *http.Request, res *http.Response, opts ...Record
 	}
 
 	l := har.NewLogger()
+	l.SetOption(har.BodyLogging(true))
 	l.RecordRequest("", req)
 	l.RecordResponse("", res)
 	rec.Entry = *l.Export().Log.Entries[0]
