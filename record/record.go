@@ -69,6 +69,10 @@ func (re *Recorder) record(req *http.Request, res *http.Response, opts ...Record
 		re.recordsLock = &sync.RWMutex{}
 	}
 
+	if re.Options == nil {
+		re.Options = &RecorderOptions{}
+	}
+
 	rec := Entry{}
 	if len(opts) > 0 {
 		rec.Options = &opts[0]
