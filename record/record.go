@@ -10,18 +10,27 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/martian/har"
 )
 
 type Recorder struct {
-	Path           string  `json:"path"`
-	Method         string  `json:"method"`
-	Tag            string  `json:"tag"`
-	APIDescription string  `json:"api_description"`
-	APISummary     string  `json:"api_summary"`
-	Records        []Entry `json:"records"`
-	recordsLock    *sync.RWMutex
+	Path           string `json:"path"`
+	Method         string `json:"method"`
+	Tag            string `json:"tag"`
+	APIDescription string `json:"api_description"`
+	APISummary     string `json:"api_summary"`
+
+	Options *RecorderOptions `json:"options"`
+
+	Records []Entry `json:"records"`
+
+	recordsLock *sync.RWMutex
+}
+
+type RecorderOptions struct {
+	LogStartedDateTime bool `json:"log_started_date_time"`
 }
 
 type Entry struct {
@@ -38,18 +47,6 @@ type RecordOptions struct {
 	ExcludeFromOpenAPI           bool
 	ExcludeFromPostmanCollection bool
 }
-
-// func (p *Payload) getJSON() interface{} {
-// 	m := map[string]interface{}{}
-// 	j := map[string]interface{}{}
-// 	d := json.NewDecoder(bytes.NewReader(p.Body))
-// 	d.UseNumber()
-// 	d.Decode(&j)
-// 	for k, v := range j {
-// 		m[k] = getType(v)
-// 	}
-// 	return m
-// }
 
 func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -91,6 +88,11 @@ func (re *Recorder) record(req *http.Request, res *http.Response, opts ...Record
 		rec.Entry.Request.PostData = &har.PostData{
 			Text: string(body),
 		}
+	}
+
+	// to prevent constant changes
+	if !re.Options.LogStartedDateTime {
+		rec.Entry.StartedDateTime = time.Time{}
 	}
 
 	re.recordsLock.Lock()
