@@ -86,7 +86,6 @@ func getJSONSchema(b []byte) map[string]interface{} {
 func getJSON(b []byte) map[string]interface{} {
 	m := map[string]interface{}{}
 	d := json.NewDecoder(bytes.NewReader(b))
-	d.UseNumber()
 	d.Decode(&m)
 	return m
 }
