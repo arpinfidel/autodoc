@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -93,6 +94,13 @@ func (re *Recorder) record(req *http.Request, res *http.Response, opts ...Record
 	// to prevent constant changes
 	if !re.Options.LogStartedDateTime {
 		rec.Entry.StartedDateTime = time.Time{}
+	}
+
+	// sort querystring
+	if rec.Entry.Request.QueryString != nil {
+		sort.Slice(rec.Entry.Request.QueryString, func(i, j int) bool {
+			return rec.Entry.Request.QueryString[i].Name < rec.Entry.Request.QueryString[j].Name
+		})
 	}
 
 	re.recordsLock.Lock()
