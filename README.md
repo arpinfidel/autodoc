@@ -9,9 +9,9 @@ Currently only supports json request/response and path/query parameters
 - run the test cases
 - call `autodoc` in your root directory to generate the OpenAPI file containing all tests
 
-# usage
+## usage
 
-```
+```bash
 go install github.com/arpinfidel/autodoc
 ```
 
@@ -67,4 +67,4 @@ autodoc
 - [ ] form body (recording done)
 - [ ] postman collection
 - [ ] other body types
-- [ ] update readme
+- [ ] multiple examples for request body

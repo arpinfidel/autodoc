@@ -15,14 +15,13 @@ import (
 )
 
 type Recorder struct {
-	Path               string  `json:"path"`
-	Method             string  `json:"method"`
-	Tag                string  `json:"tag"`
-	APIDescription     string  `json:"api_description"`
-	APISummary         string  `json:"api_summary"`
-	ExpectedStatusCode int     `json:"expected_status_code"`
-	Records            []Entry `json:"records"`
-	recordsLock        *sync.RWMutex
+	Path           string  `json:"path"`
+	Method         string  `json:"method"`
+	Tag            string  `json:"tag"`
+	APIDescription string  `json:"api_description"`
+	APISummary     string  `json:"api_summary"`
+	Records        []Entry `json:"records"`
+	recordsLock    *sync.RWMutex
 }
 
 type Entry struct {
@@ -31,7 +30,9 @@ type Entry struct {
 }
 
 type RecordOptions struct {
-	RecordDescription string
+	RequestName         string
+	RequestSummary      string
+	ResponseDescription string
 
 	UseAsRequestExample          bool
 	ExcludeFromOpenAPI           bool

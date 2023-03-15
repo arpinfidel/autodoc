@@ -71,7 +71,7 @@ func getContentType(headers []har.Header) string {
 	return "application/json"
 }
 
-func getJSON(b []byte) interface{} {
+func getJSONSchema(b []byte) map[string]interface{} {
 	m := map[string]interface{}{}
 	j := map[string]interface{}{}
 	d := json.NewDecoder(bytes.NewReader(b))
@@ -80,5 +80,13 @@ func getJSON(b []byte) interface{} {
 	for k, v := range j {
 		m[k] = getType(v)
 	}
+	return m
+}
+
+func getJSON(b []byte) map[string]interface{} {
+	m := map[string]interface{}{}
+	d := json.NewDecoder(bytes.NewReader(b))
+	d.UseNumber()
+	d.Decode(&m)
 	return m
 }

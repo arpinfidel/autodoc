@@ -22,6 +22,25 @@ type OpenAPI struct {
 	Paths         map[string]interface{} `yaml:"paths"`
 }
 
+type RequestBody struct {
+	Content map[string]Content `yaml:"content"`
+}
+
+type Content struct {
+	Schema   Schema             `yaml:"schema"`
+	Examples map[string]Example `yaml:"examples"`
+}
+
+type Schema struct {
+	Type       string      `yaml:"type"`
+	Properties interface{} `yaml:"properties"`
+}
+
+type Example struct {
+	Summary string      `yaml:"summary"`
+	Value   interface{} `yaml:"value"`
+}
+
 func (o *OpenAPI) Bytes() []byte {
 	y, _ := yaml.Marshal(o)
 	return y
@@ -32,35 +51,51 @@ func (o *OpenAPI) String() string {
 }
 
 func (r *Recorder) OpenAPI() OpenAPI {
-	req := har.Request{}
-	reqIsFlagged := false
+	requestBody := RequestBody{}
+	reqs := []har.Request{}
+	i := 0
 	for _, rec := range r.Records {
 		if rec.Options.ExcludeFromOpenAPI {
 			continue
 		}
-		if rec.Response.Status == r.ExpectedStatusCode && !reqIsFlagged {
-			req = *rec.Request
+		if !rec.Options.UseAsRequestExample {
+			continue
 		}
-		if rec.Options.UseAsRequestExample {
-			reqIsFlagged = true
-			req = *rec.Request
+		i++
+		reqs = append(reqs, *rec.Request)
+
+		req := rec.Request
+
+		if req.PostData != nil {
+			if requestBody.Content == nil {
+				requestBody.Content = map[string]Content{}
+			}
+			// TODO: merge json
+			content := requestBody.Content[getContentType(req.Headers)]
+
+			content.Schema = Schema{
+				Type:       "object",
+				Properties: getJSONSchema([]byte(req.PostData.Text)),
+			}
+
+			if content.Examples == nil {
+				content.Examples = map[string]Example{}
+			}
+
+			content.Examples[fmt.Sprintf("%d. %s", i, rec.Options.RequestName)] = Example{
+				Summary: rec.Options.RequestSummary,
+				Value:   getJSON([]byte(req.PostData.Text)),
+			}
+
+			requestBody.Content[getContentType(req.Headers)] = content
 		}
-	}
-	requestBody := map[string]interface{}{}
-	if req.PostData != nil {
-		content := map[string]interface{}{
-			getContentType(req.Headers): map[string]interface{}{
-				"schema": map[string]interface{}{
-					"type":       "object",
-					"properties": getJSON([]byte(req.PostData.Text)),
-				},
-			},
-		}
-		requestBody["content"] = content
 	}
 
 	params := []map[string]interface{}{}
 
+	req := reqs[len(reqs)-1]
+
+	// TODO: support multiple request examples
 	recP := strings.Split(r.Path, "/")
 	reqP := strings.Split(req.URL, "?")[0]
 	reqPs := strings.Split(reqP, "/")
@@ -121,12 +156,12 @@ func (r *Recorder) OpenAPI() OpenAPI {
 			continue
 		}
 		responses[strconv.Itoa(rec.Response.Status)] = map[string]interface{}{
-			"description": rec.Options.RecordDescription,
+			"description": rec.Options.ResponseDescription,
 			"content": map[string]interface{}{
 				getContentType(rec.Response.Headers): map[string]interface{}{
 					"schema": map[string]interface{}{
 						"type":       "object",
-						"properties": getJSON(rec.Response.Content.Text),
+						"properties": getJSONSchema(rec.Response.Content.Text),
 					},
 				},
 			},
