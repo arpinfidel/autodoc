@@ -98,6 +98,7 @@ func (re *Recorder) record(req *http.Request, res *http.Response, opts ...Record
 	// to prevent constant changes
 	if !re.Options.LogStartedDateTime {
 		rec.Entry.StartedDateTime = time.Time{}
+		rec.Entry.Time = 0
 	}
 
 	// sort querystring
