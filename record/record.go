@@ -113,6 +113,11 @@ func (re *Recorder) record(req *http.Request, res *http.Response, opts ...Record
 			return rec.Entry.Request.Headers[i].Name < rec.Entry.Request.Headers[j].Name
 		})
 	}
+	if rec.Entry.Response.Headers != nil {
+		sort.Slice(rec.Entry.Response.Headers, func(i, j int) bool {
+			return rec.Entry.Response.Headers[i].Name < rec.Entry.Response.Headers[j].Name
+		})
+	}
 
 	re.recordsLock.Lock()
 	re.Records = append(re.Records, rec)
