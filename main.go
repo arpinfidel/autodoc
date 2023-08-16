@@ -201,9 +201,28 @@ func (inst *instance) postmanCollection() error {
 			})
 
 			if req.Request.PostData != nil {
-				item.Request.Body = &postman.Body{
-					Mode: "json", //TODO:
-					Raw:  string(req.Request.PostData.Text),
+				switch req.Request.PostData.MimeType {
+				case "application/x-www-form-urlencoded":
+					form := []map[string]interface{}{}
+					item.Request.Body = &postman.Body{
+						Mode: "urlencoded",
+					}
+
+					for _, f := range req.Request.PostData.Params {
+						form = append(form, map[string]interface{}{
+							"key":      f.Name,
+							"value":    f.Value,
+							"required": true,
+						})
+					}
+
+					item.Request.Body.FormData = form
+
+				default:
+					item.Request.Body = &postman.Body{
+						Mode: "json", //TODO:
+						Raw:  req.Request.PostData.Text,
+					}
 				}
 			}
 

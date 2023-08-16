@@ -50,11 +50,12 @@ func (o *OpenAPI) String() string {
 	return string(o.Bytes())
 }
 
-func (r *Recorder) OpenAPI() OpenAPI {
+func (re *Recorder) OpenAPI() OpenAPI {
 	requestBody := RequestBody{}
 	reqs := []har.Request{}
 	i := 0
-	for _, rec := range r.Records {
+	formData := []har.Param{}
+	for _, rec := range re.Records {
 		if rec.Options.ExcludeFromOpenAPI {
 			continue
 		}
@@ -88,6 +89,7 @@ func (r *Recorder) OpenAPI() OpenAPI {
 			}
 
 			requestBody.Content[getContentType(req.Headers)] = content
+			formData = append(formData, req.PostData.Params...)
 		}
 	}
 
@@ -96,7 +98,7 @@ func (r *Recorder) OpenAPI() OpenAPI {
 	req := reqs[len(reqs)-1]
 
 	// TODO: support multiple request examples
-	recP := strings.Split(r.Path, "/")
+	recP := strings.Split(re.Path, "/")
 	reqP := strings.Split(req.URL, "?")[0]
 	reqPs := strings.Split(reqP, "/")
 	if len(recP) != len(reqPs) {
@@ -121,37 +123,42 @@ func (r *Recorder) OpenAPI() OpenAPI {
 		}
 	}
 
+	for _, p := range formData {
+		params = append(params, map[string]interface{}{
+			"in":   "formData",
+			"name": p.Name,
+			"schema": map[string]interface{}{
+				"type": "string",
+			},
+			"example": p.Value,
+		})
+	}
+
 	for _, q := range req.QueryString {
-		p := map[string]interface{}{
+		params = append(params, map[string]interface{}{
 			"in":   "query",
 			"name": q.Name,
-		}
-
-		p["schema"] = map[string]interface{}{
-			"type": "string",
-		}
-		p["example"] = q.Value
-
-		params = append(params, p)
+			"schema": map[string]interface{}{
+				"type": "string",
+			},
+			"example": q.Value,
+		})
 	}
 
 	for _, h := range req.Headers {
-		p := map[string]interface{}{
+		params = append(params, map[string]interface{}{
 			"in":       "header",
 			"name":     h.Name,
 			"required": true,
-		}
-
-		p["schema"] = map[string]interface{}{
-			"type": "string",
-		}
-		p["example"] = h.Value
-
-		params = append(params, p)
+			"schema": map[string]interface{}{
+				"type": "string",
+			},
+			"example": h.Value,
+		})
 	}
 
 	responses := map[string]interface{}{}
-	for _, rec := range r.Records {
+	for _, rec := range re.Records {
 		if rec.Options.ExcludeFromOpenAPI {
 			continue
 		}
@@ -177,11 +184,11 @@ func (r *Recorder) OpenAPI() OpenAPI {
 			},
 		},
 		Paths: map[string]interface{}{
-			r.Path: map[string]interface{}{
-				r.Method: map[string]interface{}{
-					"tags":        []string{r.Tag},
-					"description": r.APIDescription,
-					"summary":     r.APISummary,
+			re.Path: map[string]interface{}{
+				re.Method: map[string]interface{}{
+					"tags":        []string{re.Tag},
+					"description": re.APIDescription,
+					"summary":     re.APISummary,
 					"requestBody": requestBody,
 					"parameters":  params,
 					"responses":   responses,

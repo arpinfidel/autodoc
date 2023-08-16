@@ -114,9 +114,16 @@ func (re *Recorder) record(req *http.Request, res *http.Response, opts ...Record
 			return rec.Entry.Request.Headers[i].Name < rec.Entry.Request.Headers[j].Name
 		})
 	}
+
 	if rec.Entry.Response.Headers != nil {
 		sort.Slice(rec.Entry.Response.Headers, func(i, j int) bool {
 			return rec.Entry.Response.Headers[i].Name < rec.Entry.Response.Headers[j].Name
+		})
+	}
+
+	if rec.Entry.Request.PostData != nil {
+		sort.Slice(rec.Entry.Request.PostData.Params, func(i, j int) bool {
+			return rec.Entry.Request.PostData.Params[i].Name < rec.Entry.Request.PostData.Params[j].Name
 		})
 	}
 
@@ -162,23 +169,23 @@ func (r *responseRecorder) CloseNotify() <-chan bool {
 	return r.closeChannel
 }
 
-func (r *Recorder) JSON() []byte {
-	j, _ := json.Marshal(r)
+func (re *Recorder) JSON() []byte {
+	j, _ := json.Marshal(re)
 	return j
 }
 
-func (r *Recorder) JSONString() string {
-	return string(r.JSON())
+func (re *Recorder) JSONString() string {
+	return string(re.JSON())
 }
 
-func (r *Recorder) GenerateFile() error {
-	path := "./autodoc/autodoc-" + r.Method + "-" + strings.TrimLeft(strings.ReplaceAll(r.Path, "/", "_"), "_") + ".json"
+func (re *Recorder) GenerateFile() error {
+	path := "./autodoc/autodoc-" + re.Method + "-" + strings.TrimLeft(strings.ReplaceAll(re.Path, "/", "_"), "_") + ".json"
 	os.Mkdir("autodoc", os.ModePerm)
 	f, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	_, err = f.Write(r.JSON())
+	_, err = f.Write(re.JSON())
 	return err
 }

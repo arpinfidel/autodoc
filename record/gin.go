@@ -56,14 +56,13 @@ func createTestGinContext(c *gin.Context) (*gin.Context, *httptest.ResponseRecor
 	return c, rec.recorder
 }
 
-func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.HandlerFunc {
+func (re *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c, rec := createTestGinContext(c)
-
 		if c.Request.URL.Path == "" {
-			p := r.Path
-			re := regexp.MustCompile(`{(.*?)}`)
-			matches := re.FindAllString(r.Path, -1)
+			p := re.Path
+			rgx := regexp.MustCompile(`{(.*?)}`)
+			matches := rgx.FindAllString(re.Path, -1)
 			for _, m := range matches {
 				p = strings.ReplaceAll(p, m, c.Param(strings.Trim(m, "{}")))
 			}
@@ -78,6 +77,6 @@ func (r *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.Handl
 		}
 		h(c)
 
-		r.record(req, rec.Result(), opts...)
+		re.record(req, rec.Result(), opts...)
 	}
 }
