@@ -114,9 +114,16 @@ func (re *Recorder) record(req *http.Request, res *http.Response, opts ...Record
 			return rec.Entry.Request.Headers[i].Name < rec.Entry.Request.Headers[j].Name
 		})
 	}
+
 	if rec.Entry.Response.Headers != nil {
 		sort.Slice(rec.Entry.Response.Headers, func(i, j int) bool {
 			return rec.Entry.Response.Headers[i].Name < rec.Entry.Response.Headers[j].Name
+		})
+	}
+
+	if rec.Entry.Request.PostData != nil {
+		sort.Slice(rec.Entry.Request.PostData.Params, func(i, j int) bool {
+			return rec.Entry.Request.PostData.Params[i].Name < rec.Entry.Request.PostData.Params[j].Name
 		})
 	}
 

@@ -150,6 +150,7 @@ func TestExampleFormHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c, _ := createTestContext(withForm(tt.args.form))
+			c.Request.Method = "POST"
 			if tt.args.form != nil {
 
 			}

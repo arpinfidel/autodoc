@@ -59,10 +59,6 @@ func createTestGinContext(c *gin.Context) (*gin.Context, *httptest.ResponseRecor
 func (re *Recorder) RecordGin(h gin.HandlerFunc, opts ...RecordOptions) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c, rec := createTestGinContext(c)
-		if c.Request.Method == "" {
-			c.Request.Method = strings.ToUpper(re.Method)
-		}
-
 		if c.Request.URL.Path == "" {
 			p := re.Path
 			rgx := regexp.MustCompile(`{(.*?)}`)
