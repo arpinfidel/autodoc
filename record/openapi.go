@@ -111,7 +111,8 @@ func (re *Recorder) OpenAPI() OpenAPI {
 					}
 
 					content.Schema.Properties.(map[string]interface{})[p.Name] = map[string]interface{}{
-						"type": predictValueType(p.Value),
+						"type":    predictValueType(p.Value),
+						"example": p.Value,
 					}
 
 					exampleArr = append(exampleArr, fmt.Sprintf("%s=%s", p.Name, p.Value))
