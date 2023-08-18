@@ -34,6 +34,13 @@ var defaultConfig = config{
 	GeneratePostmanCollection: true,
 	GenerateOpenAPI:           true,
 	OpenAPIFileType:           "yaml",
+
+	OpenAPIConfig: autodoc.OpenAPIConfig{
+		Info: autodoc.OpenAPIInfo{
+			Title:   "Autodoc OpenAPI",
+			Version: "1.0.0",
+		},
+	},
 }
 
 type instance struct {
@@ -258,6 +265,14 @@ func writeDefaultConfig(path string) error {
 
 func getConfig(path string) (config, error) {
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		if version != "" {
+			defaultConfig.OpenAPIConfig.Info.Version = version
+		}
+
+		if title != "" {
+			defaultConfig.OpenAPIConfig.Info.Title = title
+		}
+
 		err := writeDefaultConfig("./autodoc/config.yaml")
 		if err != nil {
 			return defaultConfig, err
@@ -275,50 +290,69 @@ func getConfig(path string) (config, error) {
 		return config{}, err
 	}
 
+	// replace version values with cli flags
+	if version != "" {
+		c.OpenAPIConfig.Info.Version = version
+	}
+
+	// replace title values with cli flags
+	if title != "" {
+		c.OpenAPIConfig.Info.Title = title
+	}
+
 	return c, nil
 }
+
+var (
+	version = ""
+	title   = ""
+)
 
 func main() {
 	app := &cli.App{
 		Flags: []cli.Flag{
-			// &cli.StringFlag{
-			// 	Name:        "format",
-			// 	Value:       "openapi",
-			// 	Aliases:     []string{"f"},
-			// 	Usage:       "openapi",
-			// 	Destination: &format,
-			// },
+			&cli.StringFlag{
+				Name:        "api-version",
+				Aliases:     []string{"av"},
+				Usage:       "1.0.0",
+				Destination: &version,
+			}, &cli.StringFlag{
+				Name:        "title",
+				Aliases:     []string{"t"},
+				Usage:       "Autodoc OpenAPI Generator",
+				Destination: &title,
+			},
 		},
 		Name: "autodoc",
 		Action: func(*cli.Context) error {
+			cfg, err := getConfig("./autodoc/config.yaml")
+			if err != nil {
+				panic(err)
+			}
+
+			inst := &instance{
+				config: cfg,
+			}
+
+			if inst.config.GenerateOpenAPI {
+				err := inst.openAPI()
+				if err != nil {
+					panic(err)
+				}
+			}
+
+			if inst.config.GeneratePostmanCollection {
+				err = inst.postmanCollection()
+				if err != nil {
+					panic(err)
+				}
+			}
+
 			return nil
 		},
 	}
 
-	cfg, err := getConfig("./autodoc/config.yaml")
-	if err != nil {
-		panic(err)
-	}
-
-	inst := &instance{
-		config: cfg,
-	}
-
-	if err = app.Run(os.Args); err != nil {
+	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
-	}
-
-	if inst.config.GenerateOpenAPI {
-		err := inst.openAPI()
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	if inst.config.GeneratePostmanCollection {
-		err = inst.postmanCollection()
-		if err != nil {
-			panic(err)
-		}
 	}
 }

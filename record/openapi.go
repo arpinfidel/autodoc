@@ -2,6 +2,7 @@ package autodoc
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -10,10 +11,15 @@ import (
 )
 
 type OpenAPIConfig struct {
-	Info       map[string]string        `yaml:"info"      `
+	Info       OpenAPIInfo              `yaml:"info"`
 	Components map[string]interface{}   `yaml:"components"`
 	Security   []map[string]interface{} `yaml:"security"  `
 	Servers    []map[string]string      `yaml:"servers"   `
+}
+
+type OpenAPIInfo struct {
+	Title   string `yaml:"title"`
+	Version string `yaml:"version"`
 }
 
 type OpenAPI struct {
@@ -71,21 +77,57 @@ func (re *Recorder) OpenAPI() OpenAPI {
 			if requestBody.Content == nil {
 				requestBody.Content = map[string]Content{}
 			}
-			// TODO: merge json
-			content := requestBody.Content[getContentType(req.Headers)]
 
+			content := requestBody.Content[getContentType(req.Headers)]
 			content.Schema = Schema{
-				Type:       "object",
-				Properties: getJSONSchema([]byte(req.PostData.Text)),
+				Type: "object",
 			}
 
 			if content.Examples == nil {
 				content.Examples = map[string]Example{}
 			}
 
-			content.Examples[fmt.Sprintf("%d. %s", i, rec.Options.RequestName)] = Example{
-				Summary: rec.Options.RequestSummary,
-				Value:   getJSON([]byte(req.PostData.Text)),
+			if _, ok := content.Schema.Properties.(map[string]interface{}); !ok {
+				content.Schema.Properties = map[string]interface{}{}
+			}
+
+			exampleName := fmt.Sprintf("%d. %s", i, rec.Options.RequestName)
+			if rec.Options.RequestName == "" {
+				exampleName = fmt.Sprintf("%d. Example", i)
+			}
+
+			switch getContentType(req.Headers) {
+			case "application/json":
+				content.Schema.Properties = getJSONSchema([]byte(req.PostData.Text))
+				content.Examples[exampleName] = Example{
+					Summary: rec.Options.RequestSummary,
+					Value:   getJSON([]byte(req.PostData.Text)),
+				}
+			case "application/x-www-form-urlencoded":
+				exampleArr := []string{}
+				for _, p := range req.PostData.Params {
+					if p.Name == "" {
+						continue
+					}
+
+					content.Schema.Properties.(map[string]interface{})[p.Name] = map[string]interface{}{
+						"type": predictValueType(p.Value),
+					}
+
+					exampleArr = append(exampleArr, fmt.Sprintf("%s=%s", p.Name, p.Value))
+				}
+
+				content.Examples[exampleName] = Example{
+					Summary: rec.Options.RequestSummary,
+					Value:   strings.Join(exampleArr, "&"),
+				}
+			case "multipart/form-data":
+			// TODO : handle file submission
+			case "text/plain":
+				content.Examples[exampleName] = Example{
+					Summary: rec.Options.RequestSummary,
+					Value:   req.PostData.Text,
+				}
 			}
 
 			requestBody.Content[getContentType(req.Headers)] = content
@@ -121,17 +163,6 @@ func (re *Recorder) OpenAPI() OpenAPI {
 				"example": reqP,
 			})
 		}
-	}
-
-	for _, p := range formData {
-		params = append(params, map[string]interface{}{
-			"in":   "formData",
-			"name": p.Name,
-			"schema": map[string]interface{}{
-				"type": "string",
-			},
-			"example": p.Value,
-		})
 	}
 
 	for _, q := range req.QueryString {
@@ -176,13 +207,8 @@ func (re *Recorder) OpenAPI() OpenAPI {
 	}
 
 	yml := OpenAPI{
-		OpenAPI: "3.0.3",
-		OpenAPIConfig: OpenAPIConfig{
-			Info: map[string]string{
-				"title":   "",
-				"version": "1.0.0",
-			},
-		},
+		OpenAPI:       "3.0.3",
+		OpenAPIConfig: OpenAPIConfig{},
 		Paths: map[string]interface{}{
 			re.Path: map[string]interface{}{
 				re.Method: map[string]interface{}{
@@ -197,4 +223,26 @@ func (re *Recorder) OpenAPI() OpenAPI {
 		},
 	}
 	return yml
+}
+
+var (
+	matchNumber = regexp.MustCompile(`^\d+$|^\d+\.\d+$`)
+	matchBool   = regexp.MustCompile(`^(true|false)$`)
+	matchArray  = regexp.MustCompile(`^\[.*\]$`)
+	matchObject = regexp.MustCompile(`^{.*}$`)
+)
+
+func predictValueType(val string) string {
+	switch true {
+	case matchBool.MatchString(val):
+		return "boolean"
+	case matchArray.MatchString(val):
+		return "array"
+	case matchObject.MatchString(val):
+		return "object"
+	case matchNumber.MatchString(val):
+		return "number"
+	default:
+		return "string"
+	}
 }
