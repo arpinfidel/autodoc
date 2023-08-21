@@ -191,7 +191,7 @@ func (re *Recorder) OpenAPI() OpenAPI {
 
 	responses := map[string]interface{}{}
 	for _, rec := range re.Records {
-		if rec.Options.ExcludeFromOpenAPI {
+		if rec.Options.ExcludeFromOpenAPI && !rec.Options.UseAsRequestExample {
 			continue
 		}
 		responses[strconv.Itoa(rec.Response.Status)] = map[string]interface{}{

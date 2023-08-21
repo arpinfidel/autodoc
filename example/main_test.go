@@ -167,6 +167,53 @@ func TestExampleFormHandler(t *testing.T) {
 	}
 }
 
+func TestExampleRedirect(t *testing.T) {
+	recorder := autodoc.Recorder{
+		Path:   "/api/v1/example-redirect",
+		Method: "post",
+		Tag:    "Example",
+	}
+	type args struct {
+		statusCode int
+		form       interface{}
+		resp       interface{}
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "Test Example",
+			args: args{
+				statusCode: 200,
+				form: ExampleRequest{
+					ID:          1,
+					Name:        "name-example",
+					Description: "description-example",
+				},
+				resp: gin.H{"message": "success"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, _ := createTestContext(withForm(tt.args.form))
+			c.Request.Method = "POST"
+			if tt.args.form != nil {
+
+			}
+
+			recorder.RecordGin(func(c *gin.Context) {
+				c.Redirect(http.StatusTemporaryRedirect, "http://test.dev")
+			}, autodoc.RecordOptions{
+				UseAsRequestExample: true,
+			})(c)
+
+			recorder.GenerateFile()
+		})
+	}
+}
+
 func TestJSONHandler(t *testing.T) {
 	recorder := autodoc.Recorder{
 		Path:   "/api/v1/example-json",
