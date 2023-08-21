@@ -194,17 +194,8 @@ func (re *Recorder) OpenAPI() OpenAPI {
 		if rec.Options.ExcludeFromOpenAPI && !rec.Options.UseAsRequestExample {
 			continue
 		}
-		responses[strconv.Itoa(rec.Response.Status)] = map[string]interface{}{
-			"description": rec.Options.ResponseDescription,
-			"content": map[string]interface{}{
-				getContentType(rec.Response.Headers): map[string]interface{}{
-					"schema": map[string]interface{}{
-						"type":       "object",
-						"properties": getJSONSchema(rec.Response.Content.Text),
-					},
-				},
-			},
-		}
+
+		responses[strconv.Itoa(rec.Response.Status)] = rec.ResponseExample(rec.Options.ResponseDescription)
 	}
 
 	yml := OpenAPI{
