@@ -49,6 +49,29 @@ type RecordOptions struct {
 	ExcludeFromPostmanCollection bool
 }
 
+// ResponseExample returns the response content for the entry
+func (e *Entry) ResponseExample(desc string) map[string]interface{} {
+	switch e.Response.Status {
+	case 301, 302, 303, 307, 308:
+		return map[string]interface{}{
+			"description": desc,
+		}
+	default:
+		return map[string]interface{}{
+			"description": desc,
+			"content": map[string]interface{}{
+				getContentType(e.Response.Headers): map[string]interface{}{
+					"schema": map[string]interface{}{
+						"type":       "object",
+						"properties": getJSONSchema(e.Response.Content.Text),
+					},
+				},
+			},
+		}
+	}
+
+}
+
 func (re *Recorder) Record(h http.HandlerFunc, opts ...RecordOptions) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// call actual handler

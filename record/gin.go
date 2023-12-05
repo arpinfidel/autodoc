@@ -29,10 +29,11 @@ func (r *ginResponseRecorder) Write(b []byte) (int, error) {
 }
 
 func (r *ginResponseRecorder) WriteHeader(statusCode int) {
-	// TODO: temp fix for sse
+	// DO NOT SET IF -1
 	if statusCode == -1 {
-		statusCode = 200
+		return
 	}
+
 	r.recorder.WriteHeader(statusCode)
 	r.ResponseWriter.WriteHeader(statusCode)
 }

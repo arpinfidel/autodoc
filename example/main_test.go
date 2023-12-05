@@ -99,6 +99,9 @@ func withForm(data interface{}) testOpt {
 	default:
 		s := structs.New(data)
 		for _, field := range s.Fields() {
+			if field.Tag("json") == "" || field.Tag("json") == "-" {
+				continue
+			}
 			fk := strings.ReplaceAll(field.Tag("json"), ",omitempty", "")
 			form.Set(fk, fmt.Sprint(field.Value()))
 		}
@@ -121,7 +124,7 @@ func withForm(data interface{}) testOpt {
 
 func TestExampleFormHandler(t *testing.T) {
 	recorder := autodoc.Recorder{
-		Path:   "/api/v1/example",
+		Path:   "/api/v1/example-form",
 		Method: "post",
 		Tag:    "Example",
 	}
@@ -139,7 +142,7 @@ func TestExampleFormHandler(t *testing.T) {
 			args: args{
 				statusCode: 200,
 				form: ExampleRequest{
-					ID:          "id-exampple",
+					ID:          1,
 					Name:        "name-example",
 					Description: "description-example",
 				},
@@ -155,7 +158,99 @@ func TestExampleFormHandler(t *testing.T) {
 
 			}
 
-			recorder.RecordGin(ExampleFormHandler(tt.args.statusCode, tt.args.resp), autodoc.RecordOptions{
+			recorder.RecordGin(ExampleHandler(tt.args.statusCode, tt.args.resp), autodoc.RecordOptions{
+				UseAsRequestExample: true,
+			})(c)
+
+			recorder.GenerateFile()
+		})
+	}
+}
+
+func TestExampleRedirect(t *testing.T) {
+	recorder := autodoc.Recorder{
+		Path:   "/api/v1/example-redirect",
+		Method: "post",
+		Tag:    "Example",
+	}
+	type args struct {
+		statusCode int
+		form       interface{}
+		resp       interface{}
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "Test Example",
+			args: args{
+				statusCode: 200,
+				form: ExampleRequest{
+					ID:          1,
+					Name:        "name-example",
+					Description: "description-example",
+				},
+				resp: gin.H{"message": "success"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, _ := createTestContext(withForm(tt.args.form))
+			c.Request.Method = "POST"
+			if tt.args.form != nil {
+
+			}
+
+			recorder.RecordGin(func(c *gin.Context) {
+				c.Redirect(http.StatusTemporaryRedirect, "http://test.dev")
+			}, autodoc.RecordOptions{
+				UseAsRequestExample: true,
+			})(c)
+
+			recorder.GenerateFile()
+		})
+	}
+}
+
+func TestJSONHandler(t *testing.T) {
+	recorder := autodoc.Recorder{
+		Path:   "/api/v1/example-json",
+		Method: "post",
+		Tag:    "Example",
+	}
+	type args struct {
+		statusCode int
+		body       interface{}
+		resp       interface{}
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "Test Example",
+			args: args{
+				statusCode: 200,
+				body: ExampleRequest{
+					ID:          "id-exampple",
+					Name:        "name-example",
+					Description: "description-example",
+				},
+				resp: gin.H{"message": "success"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, _ := createTestContext(withBody(tt.args.body))
+			c.Request.Method = "POST"
+			if tt.args.body != nil {
+
+			}
+
+			recorder.RecordGin(ExampleHandler(tt.args.statusCode, tt.args.resp), autodoc.RecordOptions{
 				UseAsRequestExample: true,
 			})(c)
 
